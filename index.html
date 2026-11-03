@@ -184,6 +184,7 @@ html,body{background:#000!important;overflow:hidden;overscroll-behavior:none;hei
   </div>
   <h3>Speicherstand</h3>
   <div class="row"><button id="saveBtn">💾 Speichern</button><button id="loadBtn">📥 Laden</button></div>
+  <div class="row"><button id="bakBtn">⬆️ Spielstände sichern</button><label class="filebtn">⬇️ Wiederherstellen<input id="bakIn" type="file" accept=".pocketboy,.json,application/json" style="display:none"></label></div>
   <h3>Bild & Gefühl</h3>
   <div class="row"><button id="gridBtn">Pixelraster</button><button id="ghostBtn">Nachzieh-Effekt</button><button id="hapBtn">Vibration</button><button id="hapTest">Vibration testen</button><button id="sndBtn">Start-Sound</button><button id="ncBtn">Cover aus Internet</button></div>
   <p class="note">Vollbild: in Safari auf Teilen → „Zum Home-Bildschirm“, dann über das Symbol starten.<br>
@@ -201,7 +202,7 @@ html,body{background:#000!important;overflow:hidden;overscroll-behavior:none;hei
   <div id="libList"></div>
 </div>
 <div id="help"><div class="sheet">
-  <h2>So funktioniert PocketBoy <span style="font-size:11px;color:#777">v28</span></h2>
+  <h2>So funktioniert PocketBoy <span style="font-size:11px;color:#777">v30</span></h2>
   <h4>Spiel starten</h4>
   <ul><li><b>MENÜ → 🎮 Demo</b> startet ein kleines eingebautes Testspiel: Ball mit dem Steuerkreuz bewegen, <b>A</b> tauscht die Farben.</li>
   <li><b>MENÜ → 📚 Bibliothek</b> zeigt alle Spiele, die du schon geladen hast, sortiert nach Konsole. Mit Suche, Filter und Sortierung. Cover werden aus der öffentlichen libretro-Cover-Datenbank geladen, wenn der Dateiname dem üblichen Schema entspricht (z. B. „Super Mario Land (World).gb“). Sonst wird nach ein paar Sekunden Spielzeit ein Bild aus dem Spiel zum Cover. Abschaltbar unter MENÜ → Cover aus Internet. „Bearbeiten“ zum Löschen.</li>
@@ -219,7 +220,8 @@ html,body{background:#000!important;overflow:hidden;overscroll-behavior:none;hei
   <h4>Speichern</h4>
   <ul><li>Beim Verlassen der App (oder Wechsel des Spiels) wird automatisch gesichert. Beim nächsten Laden derselben ROM geht es dort weiter.</li>
   <li>Zusätzlich gibt es <b>MENÜ → 💾 Speichern / 📥 Laden</b> als festen Speicherplatz pro Spiel.</li>
-  <li>Die Spielstände liegen nur in diesem Browser auf diesem Gerät.</li></ul>
+  <li>Spielstände und Bibliothek bleiben auch bei Updates erhalten – Updates kommen automatisch. <b>Nie</b> „Website-Daten löschen“ oder das App-Symbol löschen, das löscht alles.</li>
+  <li><b>MENÜ → ⬆️ Spielstände sichern</b> erstellt eine Sicherungsdatei (z. B. in OneDrive ablegen). Mit <b>⬇️ Wiederherstellen</b> holst du sie zurück – auch auf einem anderen Gerät.</li></ul>
   <h4>Bild & Gefühl</h4>
   <ul><li><b>Pixelraster</b> zeigt das LCD-Gitter, der <b>Nachzieh-Effekt</b> das typische Verwischen alter Displays (gilt ab dem nächsten Spielstart).</li>
   <li><b>Vibration</b>: Das iPhone gibt ab iOS 18 ein leichtes Taptic-Klicken bei jedem Tastendruck. Ist der Lautlos-Modus an oder „Systemhaptik“ aus, spürst du nichts.</li>
@@ -238,7 +240,18 @@ html,body{background:#000!important;overflow:hidden;overscroll-behavior:none;hei
 function pblog(m){ try{ const l=JSON.parse(localStorage.getItem('pb_log')||'[]'); const d=new Date();
   l.push(d.toTimeString().slice(0,8)+' '+m); while(l.length>60) l.shift(); localStorage.setItem('pb_log',JSON.stringify(l)); }catch(_){} }
 addEventListener('error', e => pblog('FEHLER '+e.message));
-(()=>{ const n=performance.getEntriesByType('navigation')[0]; pblog('--- Seite geöffnet ('+(n?n.type:'?')+') v28 '+innerWidth+'x'+innerHeight+' screen '+screen.width+'x'+screen.height+(matchMedia('(display-mode: standalone)').matches?' standalone':'')+(navigator.standalone?' App':' Safari')); })();
+(()=>{ const n=performance.getEntriesByType('navigation')[0]; pblog('--- Seite geöffnet ('+(n?n.type:'?')+') v30 '+innerWidth+'x'+innerHeight+' screen '+screen.width+'x'+screen.height+(matchMedia('(display-mode: standalone)').matches?' standalone':'')+(navigator.standalone?' App':' Safari')); })();
+/* ================= Automatische Updates + dauerhafter Speicher ================= */
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').then(r=>{ r.update(); }).catch(e=>pblog('SW-Fehler '+e.message));
+  let reloaded=false;
+  navigator.serviceWorker.addEventListener('controllerchange', ()=>{ if(reloaded || started) return; reloaded=true; location.reload(); });
+}
+(async()=>{ try{
+  const persisted = navigator.storage && navigator.storage.persist ? await navigator.storage.persist() : false;
+  const est = navigator.storage && navigator.storage.estimate ? await navigator.storage.estimate() : null;
+  pblog('Speicher dauerhaft='+persisted+(est?' belegt '+Math.round(est.usage/1048576)+' MB von '+Math.round(est.quota/1048576)+' MB':''));
+}catch(e){} })();
 /* ================= Zurück-Wischgeste von Safari abfangen =================
    Ein Wischen vom linken Rand (z. B. am Steuerkreuz) würde sonst die Seite verlassen. */
 try{ history.replaceState({pb:0},''); history.pushState({pb:1},''); }catch(_){}
@@ -636,7 +649,7 @@ async function importFiles(list){
       const old = await get('meta:'+name).catch(()=>null);
       if(old && old.size===buf.byteLength){ skip++; continue; }
       await libAdd(name, kind, buf, true); ok++;
-    }catch(e){ bad++; pblog('Import-Fehler '+f.name+': '+e.message); }
+    }catch(e){ bad++; pblog('Import-Fehler '+f.name+': '+(e&&e.name)+' '+(e&&e.message)); if(e && /Quota/i.test(e.name+e.message)){ toast('Speicher voll – Import gestoppt'); break; } }
   }
   pblog(`Import: ${ok} neu, ${skip} schon da, ${bad} Fehler`);
   toast(`${ok} neu · ${skip} schon vorhanden${bad?' · '+bad+' Fehler':''}`);
@@ -644,6 +657,30 @@ async function importFiles(list){
 }
 ['dirInput','multiInput'].forEach(id=>document.getElementById(id).addEventListener('change', e=>{ const l=e.target.files; if(l&&l.length) importFiles(l); e.target.value=''; }));
 document.getElementById('hapTest').onclick = ()=>{ iosTap(); setTimeout(iosTap,180); setTimeout(iosTap,360); };
+/* ================= Sicherung der Spielstände als Datei ================= */
+const b64 = buf => { const u=new Uint8Array(buf); let s=''; for(let i=0;i<u.length;i+=0x8000) s+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000)); return btoa(s); };
+const unb64 = t => { const s=atob(t), u=new Uint8Array(s.length); for(let i=0;i<s.length;i++) u[i]=s.charCodeAt(i); return u.buffer; };
+document.getElementById('bakBtn').onclick = async ()=>{
+  await autoSave();
+  const d = await db, out = {app:'PocketBoy', v:1, date:new Date().toISOString(), states:{}};
+  await new Promise(res=>{ const c=d.transaction('s','readonly').objectStore('s').openCursor();
+    c.onsuccess=e=>{ const r=e.target.result; if(!r) return res();
+      const k=String(r.key); if(/^(auto2|slot2):/.test(k)){ const v=r.value; out.states[k] = v instanceof ArrayBuffer ? b64(v) : b64(v.buffer.slice(v.byteOffset, v.byteOffset+v.byteLength)); }
+      r.continue(); }; c.onerror=()=>res(); });
+  const n = Object.keys(out.states).length;
+  if(!n) return toast('Noch keine Spielstände');
+  const file = new File([JSON.stringify(out)], 'PocketBoy-Spielstaende-'+out.date.slice(0,10)+'.pocketboy', {type:'application/json'});
+  try{ if(navigator.canShare && navigator.canShare({files:[file]})){ await navigator.share({files:[file], title:'PocketBoy Spielstände'}); closeMenu(); return; } }catch(e){ if(e.name==='AbortError') return; }
+  const a=document.createElement('a'); a.href=URL.createObjectURL(file); a.download=file.name; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),5000);
+  toast(n+' Spielstände gesichert'); pblog('Sicherung: '+n+' Stände');
+};
+document.getElementById('bakIn').addEventListener('change', async e=>{
+  const f=e.target.files[0]; e.target.value=''; if(!f) return;
+  try{ const j=JSON.parse(await f.text()); if(j.app!=='PocketBoy') throw new Error('Keine PocketBoy-Sicherung');
+    let n=0; for(const [k,v] of Object.entries(j.states)){ await put(k, new Uint8Array(unb64(v))); n++; }
+    toast(n+' Spielstände wiederhergestellt'); pblog('Wiederhergestellt: '+n); closeMenu();
+  }catch(err){ toast('Fehler: '+err.message); }
+});
 document.getElementById('closeHelp').onclick=()=>document.getElementById('help').classList.remove('open');
 document.getElementById('help').addEventListener('click',e=>{ if(e.target.id==='help') e.target.classList.remove('open'); });
 /* ROM-Typ am Inhalt erkennen (nicht an der Endung) */

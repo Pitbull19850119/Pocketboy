@@ -17,7 +17,8 @@ canvas{image-rendering:pixelated;image-rendering:crisp-edges}
   const buf = await P.__rom.file.arrayBuffer();
   const file = new File([buf], P.__rom.name);           // im iframe neu erzeugen
   window.EJS_player = '#game';
-  window.EJS_core = P.__rom.core;                         // gambatte (.gb/.gbc) oder mgba (.gba)
+  const ext = P.__rom.name.toLowerCase().split('.').pop();
+  window.EJS_core = P.__rom.core || (ext==='gba' ? 'mgba' : 'gambatte');  // gambatte (.gb/.gbc) oder mgba (.gba)
   window.EJS_gameUrl = file;
   window.EJS_gameName = P.__rom.name.replace(/\.[^.]+$/, '');
   window.EJS_pathtodata = 'https://cdn.emulatorjs.org/stable/data/';

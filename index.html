@@ -13,7 +13,7 @@
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 html,body{margin:0;height:100%;overflow:hidden;background:#111;touch-action:none;font-family:-apple-system,system-ui,sans-serif}
-#stage{position:fixed;inset:0;overflow:hidden;background:#000}
+#stage{position:fixed;inset:0;overflow:hidden;background:#000;height:100vh;height:100lvh}
 #probe{position:fixed;visibility:hidden;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
 .dev{position:absolute;transform-origin:center;left:50%;top:50%}
 
@@ -149,7 +149,7 @@ html,body{margin:0;height:100%;overflow:hidden;background:#111;touch-action:none
 </div></div>
 
 <div id="help"><div class="sheet">
-  <h2>So funktioniert PocketBoy <span style="font-size:11px;color:#777">v2</span></h2>
+  <h2>So funktioniert PocketBoy <span style="font-size:11px;color:#777">v3</span></h2>
   <h4>Spiel starten</h4>
   <ul><li><b>MENÜ → 🎮 Demo</b> startet ein kleines eingebautes Testspiel: Ball mit dem Steuerkreuz bewegen, <b>A</b> tauscht die Farben.</li>
   <li><b>MENÜ → 📂 ROM laden</b> öffnet die Dateien-App. Erlaubt sind <b>.gb</b>, <b>.gbc</b>, <b>.gba</b> (auch als .zip).</li>
@@ -283,12 +283,15 @@ function landscape(W,H,ins){
 
 function currentModel(){
   if(S.model!=='auto') return S.model;
-  if(rom){const e=rom.name.toLowerCase().split('.').pop(); if(e==='gba')return'gba'; if(e==='gbc')return'gbc';}
+  if(rom && rom.kind) return rom.kind;
   return 'dmg';
 }
 function build(){
   const m = currentModel(); cur = m;
-  const VW = innerWidth, VH = innerHeight, land = VW > VH, wantLand = m==='gba';
+  let VW = innerWidth, VH = Math.max(innerHeight, document.documentElement.clientHeight);
+  if(navigator.standalone){ const p = VH >= VW; VW = p ? Math.min(screen.width,screen.height) : Math.max(screen.width,screen.height);
+    VH = p ? Math.max(screen.width,screen.height) : Math.min(screen.width,screen.height); }
+  const land = VW > VH, wantLand = m==='gba';
   rot = land===wantLand ? 0 : (wantLand ? 90 : -90);
   const W = rot ? VH : VW, H = rot ? VW : VH;
   const ins = rot ? {t:10,r:10,b:10,l:10} : insets();
@@ -384,11 +387,50 @@ document.getElementById('demoBtn').onclick = async ()=>{
 };
 document.getElementById('closeHelp').onclick=()=>document.getElementById('help').classList.remove('open');
 document.getElementById('help').addEventListener('click',e=>{ if(e.target.id==='help') e.target.classList.remove('open'); });
+/* ROM-Typ am Inhalt erkennen (nicht an der Endung) */
+async function unzipFirst(buf){
+  const v=new DataView(buf); let o=0;
+  while(o+30<buf.byteLength && v.getUint32(o,true)===0x04034b50){
+    const flag=v.getUint16(o+6,true), method=v.getUint16(o+8,true);
+    let csize=v.getUint32(o+18,true); const nl=v.getUint16(o+26,true), el=v.getUint16(o+28,true);
+    const name=new TextDecoder().decode(new Uint8Array(buf,o+30,nl)), start=o+30+nl+el;
+    if(flag&8){ // Grösse steht erst im Zentralverzeichnis
+      const u8=new Uint8Array(buf); for(let i=buf.byteLength-22;i>=0;i--) if(v.getUint32(i,true)===0x06054b50){
+        let c=v.getUint32(i+16,true); while(v.getUint32(c,true)===0x02014b50){ const n2=v.getUint16(c+28,true);
+          const nm=new TextDecoder().decode(u8.subarray(c+46,c+46+n2));
+          if(nm===name){ csize=v.getUint32(c+20,true); break; } c+=46+n2+v.getUint16(c+30,true)+v.getUint16(c+32,true);} break; }
+    }
+    if(/\.(gba|gbc|gb)$/i.test(name)){
+      const data=new Uint8Array(buf,start,csize);
+      if(method===0) return {name,buf:data.slice().buffer};
+      const ds=new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+      return {name,buf:await new Response(ds).arrayBuffer()};
+    }
+    o=start+csize;
+  }
+  return null;
+}
+function romKind(buf){
+  const u=new Uint8Array(buf);
+  if(u.length>0xB2 && u[0xB2]===0x96 && u[3]===0xEA) return 'gba';      // GBA-Header: feste Kennung + Sprungbefehl
+  if(u.length>0x143 && (u[0x143]&0x80)) return 'gbc';                     // Color-Flag im GB-Header
+  return 'dmg';
+}
 async function loadRom(f){
   await autoSave();
-  rom = { file:f, name:f.name };
+  let buf = await f.arrayBuffer(), name = f.name;
+  if(new Uint8Array(buf,0,2)[0]===0x50 && new Uint8Array(buf,0,2)[1]===0x4B){
+    const z = await unzipFirst(buf).catch(()=>null);
+    if(!z) return toast('Keine ROM in der ZIP gefunden');
+    buf = z.buf; name = z.name.split('/').pop();
+  }
+  const kind = romKind(buf);
+  name = name.replace(/\.(zip|gb|gbc|gba)$/i,'') + (kind==='gba'?'.gba':kind==='gbc'?'.gbc':'.gb');
+  f = new File([buf], name);
+  S.model = 'auto'; saveSet();
+  rom = { file:f, name:f.name, kind };
   const ext = f.name.toLowerCase().split('.').pop();
-  const isGBA = ext==='gba';
+  const isGBA = kind==='gba';
   rom.core = isGBA ? 'mgba' : 'gambatte';
   rom.coreOpts = isGBA ? {'mgba_interframe_blending': S.ghost?'mix':'OFF','mgba_skip_bios':'ON'} : {
     'gambatte_mix_frames': S.ghost ? 'mix' : 'disabled',

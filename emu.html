@@ -63,6 +63,8 @@ function romKind(buf,name){
   window.EJS_gameName = name.replace(/\.[^.]+$/, '');
   window.EJS_pathtodata = 'https://cdn.emulatorjs.org/stable/data/';
   window.EJS_startOnLoaded = true;
+  window.EJS_disableDatabases = true;   // keine Kopien von Spiel/Kern in IndexedDB
+  window.EJS_threads = false;
   window.EJS_backgroundColor = '#000';
   window.EJS_defaultOptions = kind==='gba' ? {'mgba_skip_bios':'ON','mgba_interframe_blending':'mix'}
     : Object.assign({'gambatte_gb_colorization':'internal','gambatte_gb_internal_palette':'GB - DMG','gambatte_mix_frames':'mix'},

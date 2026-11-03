@@ -67,7 +67,7 @@ try{ Object.keys(localStorage).filter(k=>/^ejs/i.test(k)).forEach(k=>localStorag
   const file = new File([buf], name);
   P.postMessage({ t:'kind', kind }, '*');
   window.EJS_player = '#game';
-  window.EJS_core = kind==='gba' ? 'mgba' : 'gambatte';   // Kern immer aus dem Dateiinhalt
+  window.EJS_core = 'mgba';   // mGBA für alle Systeme (Gambatte stürzt auf iOS 26 nach ~20 s ab)
   window.EJS_gameUrl = file;
   window.EJS_gameName = name.replace(/\.[^.]+$/, '');
   window.EJS_pathtodata = 'https://cdn.emulatorjs.org/stable/data/';
@@ -77,9 +77,14 @@ try{ Object.keys(localStorage).filter(k=>/^ejs/i.test(k)).forEach(k=>localStorag
   window.EJS_webgl2Enabled = false;      // WebGL2 auf iOS instabil -> einfacher Modus
   window.EJS_defaultOptions_extra = {'save-save-interval':'0','webgl2Enabled':'disabled','shader':'disabled','rewindEnabled':'disabled','save-state-location':'browser'};
   window.EJS_backgroundColor = '#000';
-  window.EJS_defaultOptions = kind==='gba' ? {'mgba_skip_bios':'ON','mgba_interframe_blending':'mix'}
-    : Object.assign({'gambatte_gb_colorization':'internal','gambatte_gb_internal_palette':'GB - DMG','gambatte_mix_frames':'mix'},
-        (P.__rom.coreOpts && !P.__rom.coreOpts.mgba_skip_bios) ? P.__rom.coreOpts : {});
+  const ghost = !(P.S && P.S.ghost === false);
+  window.EJS_defaultOptions = {
+    'mgba_skip_bios':'ON',
+    'mgba_interframe_blending': ghost ? 'mix' : 'OFF',
+    'mgba_gb_model': kind==='gbc' ? 'Game Boy Color' : kind==='gba' ? 'Autodetect' : (P.cur==='gbc' ? 'Game Boy Color' : 'Game Boy'),
+    'mgba_gb_colors': 'DMG Green',
+    'mgba_sgb_borders':'OFF'
+  };
   Object.assign(window.EJS_defaultOptions, window.EJS_defaultOptions_extra);
   window.EJS_onGameStart = () => { pl('Spiel gestartet');
     try{ const E=window.EJS_emulator;

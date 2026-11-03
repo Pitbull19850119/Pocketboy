@@ -150,7 +150,7 @@ html,body{background:#000!important;overflow:hidden;overscroll-behavior:none;hei
 </div></div>
 
 <div id="help"><div class="sheet">
-  <h2>So funktioniert PocketBoy <span style="font-size:11px;color:#777">v18</span></h2>
+  <h2>So funktioniert PocketBoy <span style="font-size:11px;color:#777">v19</span></h2>
   <h4>Spiel starten</h4>
   <ul><li><b>MENÜ → 🎮 Demo</b> startet ein kleines eingebautes Testspiel: Ball mit dem Steuerkreuz bewegen, <b>A</b> tauscht die Farben.</li>
   <li><b>MENÜ → 📂 ROM laden</b> öffnet die Dateien-App. Erlaubt sind <b>.gb</b>, <b>.gbc</b>, <b>.gba</b> (auch als .zip).</li>
@@ -184,7 +184,7 @@ html,body{background:#000!important;overflow:hidden;overscroll-behavior:none;hei
 function pblog(m){ try{ const l=JSON.parse(localStorage.getItem('pb_log')||'[]'); const d=new Date();
   l.push(d.toTimeString().slice(0,8)+' '+m); while(l.length>60) l.shift(); localStorage.setItem('pb_log',JSON.stringify(l)); }catch(_){} }
 addEventListener('error', e => pblog('FEHLER '+e.message));
-(()=>{ const n=performance.getEntriesByType('navigation')[0]; pblog('--- Seite geöffnet ('+(n?n.type:'?')+') v18 '+innerWidth+'x'+innerHeight+' screen '+screen.width+'x'+screen.height+(matchMedia('(display-mode: standalone)').matches?' standalone':'')+(navigator.standalone?' App':' Safari')); })();
+(()=>{ const n=performance.getEntriesByType('navigation')[0]; pblog('--- Seite geöffnet ('+(n?n.type:'?')+') v19 '+innerWidth+'x'+innerHeight+' screen '+screen.width+'x'+screen.height+(matchMedia('(display-mode: standalone)').matches?' standalone':'')+(navigator.standalone?' App':' Safari')); })();
 /* ================= Zurück-Wischgeste von Safari abfangen =================
    Ein Wischen vom linken Rand (z. B. am Steuerkreuz) würde sonst die Seite verlassen. */
 try{ history.replaceState({pb:0},''); history.pushState({pb:1},''); }catch(_){}
@@ -193,7 +193,7 @@ addEventListener('pageshow', e=>{ if(e.persisted) pblog('pageshow aus bfcache');
 addEventListener('scroll', ()=>scrollTo(0,0));
 addEventListener('popstate', ()=>{ pblog('Zurück-Geste abgefangen'); try{ history.pushState({pb:1},''); }catch(_){} });
 /* ================= Einstellungen ================= */
-const S = Object.assign({model:'auto',grid:true,ghost:true,haptic:true,sound:true},
+var S = Object.assign({model:'auto',grid:true,ghost:true,haptic:true,sound:true},
   JSON.parse(localStorage.getItem('pb_set')||'{}'));
 const saveSet = () => { try{localStorage.setItem('pb_set',JSON.stringify(S))}catch(e){} };
 
@@ -205,7 +205,7 @@ const idb = (mode,fn) => db.then(d=>new Promise((res,rej)=>{const t=d.transactio
 const put=(k,v)=>idb('readwrite',s=>s.put(v,k)), get=k=>idb('readonly',s=>s.get(k));
 
 /* ================= Geräte-Layouts (berechnet aus der Bildschirmgröße) ================= */
-let cur = null, rom = null, started = false, rot = 0;
+var cur = null; let  rom = null, started = false, rot = 0;
 const dev = document.getElementById('dev');
 const R = v => Math.round(v);
 const box = (x,y,w,h,extra='') => `left:${R(x)}px;top:${R(y)}px;width:${R(w)}px;height:${R(h)}px;${extra}`;
@@ -474,7 +474,7 @@ async function loadRom(f, resume){
   rom = { file:f, name:f.name, kind };
   const ext = f.name.toLowerCase().split('.').pop();
   const isGBA = kind==='gba';
-  rom.core = isGBA ? 'mgba' : 'gambatte';
+  rom.core = 'mgba';
   rom.coreOpts = isGBA ? {'mgba_interframe_blending': S.ghost?'mix':'OFF','mgba_skip_bios':'ON'} : {
     'gambatte_mix_frames': S.ghost ? 'mix' : 'disabled',
     'gambatte_gb_colorization': 'internal',

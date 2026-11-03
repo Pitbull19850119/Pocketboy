@@ -92,6 +92,7 @@ html,body{background:#000!important;overflow:hidden;overscroll-behavior:none;hei
 .speaker b{border-radius:999px;background:linear-gradient(90deg,rgba(0,0,0,.42),rgba(0,0,0,.2));box-shadow:inset 0 2px 3px rgba(0,0,0,.5),1px 1px 0 rgba(255,255,255,.4)}
 .gbc .speaker b,.gba .speaker b{box-shadow:inset 0 2px 3px rgba(0,0,0,.5),1px 1px 0 rgba(255,255,255,.15)}
 .tz{position:absolute;touch-action:none}
+.hsw{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:.011;touch-action:none;-webkit-appearance:auto}
 .screw{position:absolute;z-index:5;width:15px;height:15px;border-radius:50%;
   background:radial-gradient(circle at 40% 35%,rgba(255,255,255,.35),rgba(0,0,0,.18));box-shadow:inset 0 1px 2px rgba(0,0,0,.4),0 1px 0 rgba(255,255,255,.3);
   font:700 9px/15px sans-serif;color:rgba(0,0,0,.32);text-align:center}
@@ -200,7 +201,7 @@ html,body{background:#000!important;overflow:hidden;overscroll-behavior:none;hei
   <div id="libList"></div>
 </div>
 <div id="help"><div class="sheet">
-  <h2>So funktioniert PocketBoy <span style="font-size:11px;color:#777">v27</span></h2>
+  <h2>So funktioniert PocketBoy <span style="font-size:11px;color:#777">v28</span></h2>
   <h4>Spiel starten</h4>
   <ul><li><b>MENÜ → 🎮 Demo</b> startet ein kleines eingebautes Testspiel: Ball mit dem Steuerkreuz bewegen, <b>A</b> tauscht die Farben.</li>
   <li><b>MENÜ → 📚 Bibliothek</b> zeigt alle Spiele, die du schon geladen hast, sortiert nach Konsole. Mit Suche, Filter und Sortierung. Cover werden aus der öffentlichen libretro-Cover-Datenbank geladen, wenn der Dateiname dem üblichen Schema entspricht (z. B. „Super Mario Land (World).gb“). Sonst wird nach ein paar Sekunden Spielzeit ein Bild aus dem Spiel zum Cover. Abschaltbar unter MENÜ → Cover aus Internet. „Bearbeiten“ zum Löschen.</li>
@@ -237,7 +238,7 @@ html,body{background:#000!important;overflow:hidden;overscroll-behavior:none;hei
 function pblog(m){ try{ const l=JSON.parse(localStorage.getItem('pb_log')||'[]'); const d=new Date();
   l.push(d.toTimeString().slice(0,8)+' '+m); while(l.length>60) l.shift(); localStorage.setItem('pb_log',JSON.stringify(l)); }catch(_){} }
 addEventListener('error', e => pblog('FEHLER '+e.message));
-(()=>{ const n=performance.getEntriesByType('navigation')[0]; pblog('--- Seite geöffnet ('+(n?n.type:'?')+') v27 '+innerWidth+'x'+innerHeight+' screen '+screen.width+'x'+screen.height+(matchMedia('(display-mode: standalone)').matches?' standalone':'')+(navigator.standalone?' App':' Safari')); })();
+(()=>{ const n=performance.getEntriesByType('navigation')[0]; pblog('--- Seite geöffnet ('+(n?n.type:'?')+') v28 '+innerWidth+'x'+innerHeight+' screen '+screen.width+'x'+screen.height+(matchMedia('(display-mode: standalone)').matches?' standalone':'')+(navigator.standalone?' App':' Safari')); })();
 /* ================= Zurück-Wischgeste von Safari abfangen =================
    Ein Wischen vom linken Rand (z. B. am Steuerkreuz) würde sonst die Seite verlassen. */
 try{ history.replaceState({pb:0},''); history.pushState({pb:1},''); }catch(_){}
@@ -384,6 +385,7 @@ function build(){
     skin = document.getElementById('skin'); scr = document.getElementById('scr');
   }
   skin.innerHTML = L.html;
+  if(S.haptic) skin.querySelectorAll('.tz').forEach(z=>{ const i=document.createElement('input'); i.type='checkbox'; i.setAttribute('switch',''); i.className='hsw'; i.tabIndex=-1; i.setAttribute('aria-hidden','true'); z.appendChild(i); });
   scr.style.cssText = `${box(b.x,b.y,b.w,b.h)};--px:${L.px}px;z-index:2`;
   const idle = document.getElementById('idle');
   idle.innerHTML = rom ? 'Lädt …' : 'MENÜ → Bibliothek, Demo oder ROM<br><span style="font-weight:400;font-size:11px">.gb · .gbc · .gba</span>';
@@ -430,7 +432,8 @@ function haptic(){
 /* ================= Touch-Eingabe (Multitouch) ================= */
 const held = new Map(); // touchId -> Set von Tasten
 function keysAt(x,y){
-  const el = document.elementFromPoint(x,y);
+  let el = document.elementFromPoint(x,y);
+  if(el && el.classList.contains('hsw')) el = el.parentNode;
   if(!el || !el.classList.contains('tz')) return [];
   if(el.hasAttribute('data-dpad')){
     const r = el.getBoundingClientRect(); let dx = x-(r.left+r.width/2), dy = y-(r.top+r.height/2);
@@ -455,7 +458,8 @@ function refresh(){
 const pressed = new Set();
 function onTouch(e){
   if(e.target.closest('#menu,.knob,#help,.screw,#lib')) return;
-  e.preventDefault(); resumeAudio();
+  if(!(e.target.classList && e.target.classList.contains('hsw'))) e.preventDefault();
+  resumeAudio();
   for(const t of e.changedTouches){
     if(e.type==='touchend'||e.type==='touchcancel') held.delete(t.identifier);
     else held.set(t.identifier, new Set(keysAt(t.clientX,t.clientY)));

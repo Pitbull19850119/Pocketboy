@@ -123,6 +123,8 @@ html,body{background:#000!important;overflow:hidden;overscroll-behavior:none;hei
 .cart.gbc .label{background:linear-gradient(160deg,#a33b6b,#4a1a46)}
 .cart.gba .label{height:80%;background:linear-gradient(160deg,#2f6fb0,#173a63)}
 .cart .label img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;image-rendering:pixelated}
+.cart .label.box img{image-rendering:auto;object-fit:cover}
+.cart .label.box span{display:none}
 .cart .label span{position:relative;width:100%;padding:4px 5px;font:800 9.5px/1.15 'Avenir Next',sans-serif;color:#fff;
   background:linear-gradient(transparent,rgba(0,0,0,.75));text-shadow:0 1px 1px #000;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 .cart .badge{position:absolute;right:6px;bottom:4px;font:800 8px sans-serif;letter-spacing:1px;color:rgba(255,255,255,.6)}
@@ -181,7 +183,7 @@ html,body{background:#000!important;overflow:hidden;overscroll-behavior:none;hei
   <h3>Speicherstand</h3>
   <div class="row"><button id="saveBtn">💾 Speichern</button><button id="loadBtn">📥 Laden</button></div>
   <h3>Bild & Gefühl</h3>
-  <div class="row"><button id="gridBtn">Pixelraster</button><button id="ghostBtn">Nachzieh-Effekt</button><button id="hapBtn">Vibration</button><button id="sndBtn">Start-Sound</button></div>
+  <div class="row"><button id="gridBtn">Pixelraster</button><button id="ghostBtn">Nachzieh-Effekt</button><button id="hapBtn">Vibration</button><button id="sndBtn">Start-Sound</button><button id="ncBtn">Cover aus Internet</button></div>
   <p class="note">Vollbild: in Safari auf Teilen → „Zum Home-Bildschirm“, dann über das Symbol starten.<br>
   Der Spielstand wird automatisch gesichert, wenn du die App verlässt, und beim nächsten Start dieses Spiels fortgesetzt.</p>
   <div class="row"><button id="closeMenu">Schließen</button></div>
@@ -197,10 +199,10 @@ html,body{background:#000!important;overflow:hidden;overscroll-behavior:none;hei
   <div id="libList"></div>
 </div>
 <div id="help"><div class="sheet">
-  <h2>So funktioniert PocketBoy <span style="font-size:11px;color:#777">v21</span></h2>
+  <h2>So funktioniert PocketBoy <span style="font-size:11px;color:#777">v22</span></h2>
   <h4>Spiel starten</h4>
   <ul><li><b>MENÜ → 🎮 Demo</b> startet ein kleines eingebautes Testspiel: Ball mit dem Steuerkreuz bewegen, <b>A</b> tauscht die Farben.</li>
-  <li><b>MENÜ → 📚 Bibliothek</b> zeigt alle Spiele, die du schon geladen hast, sortiert nach Konsole. Mit Suche, Filter und Sortierung. Ein Bild aus dem Spiel wird nach ein paar Sekunden automatisch zum Cover. „Bearbeiten“ zum Löschen.</li>
+  <li><b>MENÜ → 📚 Bibliothek</b> zeigt alle Spiele, die du schon geladen hast, sortiert nach Konsole. Mit Suche, Filter und Sortierung. Cover werden aus der öffentlichen libretro-Cover-Datenbank geladen, wenn der Dateiname dem üblichen Schema entspricht (z. B. „Super Mario Land (World).gb“). Sonst wird nach ein paar Sekunden Spielzeit ein Bild aus dem Spiel zum Cover. Abschaltbar unter MENÜ → Cover aus Internet. „Bearbeiten“ zum Löschen.</li>
   <li><b>MENÜ → 🌐 Link</b> lädt ein Spiel direkt aus dem Internet. Nötig ist ein direkter Datei-Link (endet auf .gb/.gbc/.gba/.zip), und der Server muss den Zugriff erlauben. Sonst die Datei herunterladen und über ROM laden öffnen.</li>
   <li><b>MENÜ → 📂 ROM laden</b> öffnet die Dateien-App. Erlaubt sind <b>.gb</b>, <b>.gbc</b>, <b>.gba</b> (auch als .zip).</li>
   <li>Unter <b>Gerät → Automatisch</b> wird das Gehäuse passend zur Dateiendung gewählt. Du kannst es aber auch fix einstellen.</li></ul>
@@ -233,7 +235,7 @@ html,body{background:#000!important;overflow:hidden;overscroll-behavior:none;hei
 function pblog(m){ try{ const l=JSON.parse(localStorage.getItem('pb_log')||'[]'); const d=new Date();
   l.push(d.toTimeString().slice(0,8)+' '+m); while(l.length>60) l.shift(); localStorage.setItem('pb_log',JSON.stringify(l)); }catch(_){} }
 addEventListener('error', e => pblog('FEHLER '+e.message));
-(()=>{ const n=performance.getEntriesByType('navigation')[0]; pblog('--- Seite geöffnet ('+(n?n.type:'?')+') v21 '+innerWidth+'x'+innerHeight+' screen '+screen.width+'x'+screen.height+(matchMedia('(display-mode: standalone)').matches?' standalone':'')+(navigator.standalone?' App':' Safari')); })();
+(()=>{ const n=performance.getEntriesByType('navigation')[0]; pblog('--- Seite geöffnet ('+(n?n.type:'?')+') v22 '+innerWidth+'x'+innerHeight+' screen '+screen.width+'x'+screen.height+(matchMedia('(display-mode: standalone)').matches?' standalone':'')+(navigator.standalone?' App':' Safari')); })();
 /* ================= Zurück-Wischgeste von Safari abfangen =================
    Ein Wischen vom linken Rand (z. B. am Steuerkreuz) würde sonst die Seite verlassen. */
 try{ history.replaceState({pb:0},''); history.pushState({pb:1},''); }catch(_){}
@@ -242,7 +244,7 @@ addEventListener('pageshow', e=>{ if(e.persisted) pblog('pageshow aus bfcache');
 addEventListener('scroll', ()=>scrollTo(0,0));
 addEventListener('popstate', ()=>{ pblog('Zurück-Geste abgefangen'); try{ history.pushState({pb:1},''); }catch(_){} });
 /* ================= Einstellungen ================= */
-var S = Object.assign({model:'auto',grid:true,ghost:true,haptic:true,sound:true},
+var S = Object.assign({model:'auto',grid:true,ghost:true,haptic:true,sound:true,netcovers:true},
   JSON.parse(localStorage.getItem('pb_set')||'{}'));
 const saveSet = () => { try{localStorage.setItem('pb_set',JSON.stringify(S))}catch(e){} };
 
@@ -508,6 +510,27 @@ async function libAll(){
   const d = await db; return new Promise(res=>{ const out=[]; const t=d.transaction('s','readonly').objectStore('s').openCursor();
     t.onsuccess=e=>{ const c=e.target.result; if(!c) return res(out); if(String(c.key).startsWith('meta:')) out.push(c.value); c.continue(); }; t.onerror=()=>res(out); });
 }
+/* Cover aus der öffentlichen libretro-thumbnails-Datenbank (Name muss dem No-Intro-Schema entsprechen) */
+const LR_SYS = {dmg:'Nintendo_-_Game_Boy', gbc:'Nintendo_-_Game_Boy_Color', gba:'Nintendo_-_Game_Boy_Advance'};
+function netCoverUrls(i){
+  const base = i.name.replace(/\.(gba|gbc|gb|zip)$/i,'').replace(/[&*\/:`<>?\\|"]/g,'_');
+  const enc = encodeURIComponent(base)+'.png', sys = LR_SYS[i.kind];
+  return [`https://thumbnails.libretro.com/${sys.replace(/_/g,' ')}/Named_Boxarts/${enc}`,
+          `https://raw.githubusercontent.com/libretro-thumbnails/${sys}/master/Named_Boxarts/${enc}`];
+}
+async function fetchNetCover(i){
+  if(!S.netcovers) return null;
+  const miss = await get('nocover:'+i.name).catch(()=>null);
+  if(miss && Date.now()-miss < 7*864e5) return null;           // fehlende Cover nur 1x pro Woche erneut suchen
+  for(const u of netCoverUrls(i)){
+    try{ const r = await fetch(u); if(!r.ok) continue;
+      const bl = await r.blob(); if(!bl.type.startsWith('image')) continue;
+      const url = await new Promise(res=>{ const fr=new FileReader(); fr.onload=()=>res(fr.result); fr.readAsDataURL(bl); });
+      await put('netcover:'+i.name, url); return url;
+    }catch(_){}
+  }
+  await put('nocover:'+i.name, Date.now()); return null;
+}
 async function libRender(){
   const list = document.getElementById('libList');
   let items = await libAll();
@@ -518,10 +541,16 @@ async function libRender(){
   items.sort(sorters[libF.s]);
   if(!items.length){ list.innerHTML = `<div class="libEmpty">${q||libF.f!=='all' ? 'Nichts gefunden.' : 'Noch keine Spiele.<br>Lade ein Spiel über MENÜ → 📂 ROM laden oder 🌐 Link –<br>es landet automatisch hier.'}</div>`; return; }
   const covers = {};
-  await Promise.all(items.map(async i=>{ covers[i.name] = await get('cover:'+i.name).catch(()=>null); }));
+  const need = [];
+  await Promise.all(items.map(async i=>{
+    const nc = S.netcovers ? await get('netcover:'+i.name).catch(()=>null) : null;
+    covers[i.name] = nc || await get('cover:'+i.name).catch(()=>null);
+    if(nc) covers[i.name+'#box']=1; else if(S.netcovers) need.push(i);
+  }));
+  if(need.length) Promise.all(need.map(fetchNetCover)).then(r=>{ if(r.some(Boolean)) libRender(); });
   const esc = t => t.replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   const card = i => `<div class="libItem" data-n="${esc(i.name)}">
-      <div class="cart ${i.kind}"><div class="label">${covers[i.name]?`<img src="${covers[i.name]}" alt="">`:''}<span>${esc(i.title)}</span></div>
+      <div class="cart ${i.kind}"><div class="label${covers[i.name+'#box']?' box':''}">${covers[i.name]?`<img src="${covers[i.name]}" alt="">`:''}<span>${esc(i.title)}</span></div>
       <div class="badge">${i.kind==='gba'?'ADVANCE':i.kind==='gbc'?'COLOR':'GAME BOY'}</div></div>
       <div class="t">${esc(i.title)}</div><div class="m">${i.plays||1}× gespielt · ${Math.max(1,Math.round(i.size/1024))>1023?(i.size/1048576).toFixed(1)+' MB':Math.round(i.size/1024)+' KB'}</div>
       <button class="del" aria-label="Löschen">✕</button></div>`;
@@ -699,11 +728,11 @@ document.getElementById('closeMenu').onclick=closeMenu;
 menu.addEventListener('click',e=>{ if(e.target===menu) closeMenu(); });
 function syncMenu(){
   document.querySelectorAll('#models button').forEach(b=>b.classList.toggle('sel',b.dataset.m===S.model));
-  [['gridBtn','grid'],['ghostBtn','ghost'],['hapBtn','haptic'],['sndBtn','sound']]
+  [['gridBtn','grid'],['ghostBtn','ghost'],['hapBtn','haptic'],['sndBtn','sound'],['ncBtn','netcovers']]
     .forEach(([id,k])=>document.getElementById(id).classList.toggle('sel',S[k]));
 }
 document.querySelectorAll('#models button').forEach(b=>b.onclick=()=>{ S.model=b.dataset.m; saveSet(); syncMenu(); build(); });
-[['gridBtn','grid'],['ghostBtn','ghost'],['hapBtn','haptic'],['sndBtn','sound']].forEach(([id,k])=>
+[['gridBtn','grid'],['ghostBtn','ghost'],['hapBtn','haptic'],['sndBtn','sound'],['ncBtn','netcovers']].forEach(([id,k])=>
   document.getElementById(id).onclick=()=>{ S[k]=!S[k]; saveSet(); syncMenu(); build();
     if(k==='ghost'&&started) toast('Gilt ab dem nächsten Spielstart'); if(k==='haptic') haptic(); });
 

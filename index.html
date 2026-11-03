@@ -99,6 +99,43 @@ html,body{background:#000!important;overflow:hidden;overscroll-behavior:none;hei
   color:var(--ink);opacity:.75;background:rgba(0,0,0,.1);box-shadow:inset 0 1px 3px rgba(0,0,0,.35),0 1px 0 rgba(255,255,255,.35)}
 .knob.on{background:#ff8a00;color:#000;opacity:1}
 
+/* ---------- Bibliothek ---------- */
+#lib{position:fixed;inset:0;z-index:33;background:#121216;display:none;flex-direction:column;color:#eee;
+  padding:calc(env(safe-area-inset-top) + 10px) 0 env(safe-area-inset-bottom)}
+#lib.open{display:flex}
+#lib .top{padding:0 14px 8px;display:flex;gap:8px;align-items:center}
+#lib h2{margin:0;font-size:22px;flex:1}
+#lib .x{border:0;background:#2a2a33;color:#fff;border-radius:16px;height:32px;padding:0 14px;font:600 14px sans-serif}
+#libSearch{margin:0 14px 8px;padding:11px 14px;border-radius:12px;border:0;background:#24242c;color:#fff;font-size:16px;-webkit-user-select:text;user-select:text}
+#libChips{display:flex;gap:6px;padding:0 14px 10px;overflow-x:auto;flex-shrink:0}
+#libChips button{border:0;border-radius:999px;padding:7px 13px;background:#24242c;color:#ccc;font:600 13px sans-serif;white-space:nowrap}
+#libChips button.sel{background:#5b4bd8;color:#fff}
+#libList{flex:1;overflow-y:auto;padding:0 14px 20px;touch-action:pan-y;-webkit-overflow-scrolling:touch}
+.libSec{margin:14px 0 8px;font:700 12px sans-serif;letter-spacing:1.5px;color:#888;text-transform:uppercase}
+.libGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(102px,1fr));gap:14px 12px}
+.cart{position:relative;aspect-ratio:.86;border-radius:6px 6px 10px 10px;padding:9% 8% 0;
+  background:linear-gradient(170deg,#cfccc4,#a9a59b);box-shadow:inset 0 2px 1px rgba(255,255,255,.5),inset 0 -3px 6px rgba(0,0,0,.25),0 4px 10px rgba(0,0,0,.5)}
+.cart.gbc{background:linear-gradient(170deg,#5a5a62,#2c2c33)}
+.cart.gba{aspect-ratio:1.45;border-radius:6px 6px 12px 12px;background:linear-gradient(170deg,#5b5b66,#30303a);padding:7% 7% 0}
+.cart:before{content:'';position:absolute;left:8%;right:8%;top:3%;height:3px;border-radius:2px;background:rgba(0,0,0,.18)}
+.cart .label{position:relative;height:72%;border-radius:4px;overflow:hidden;background:linear-gradient(160deg,#3a3f8f,#1c1f55);
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,.35);display:flex;align-items:flex-end}
+.cart.gbc .label{background:linear-gradient(160deg,#a33b6b,#4a1a46)}
+.cart.gba .label{height:80%;background:linear-gradient(160deg,#2f6fb0,#173a63)}
+.cart .label img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;image-rendering:pixelated}
+.cart .label span{position:relative;width:100%;padding:4px 5px;font:800 9.5px/1.15 'Avenir Next',sans-serif;color:#fff;
+  background:linear-gradient(transparent,rgba(0,0,0,.75));text-shadow:0 1px 1px #000;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.cart .badge{position:absolute;right:6px;bottom:4px;font:800 8px sans-serif;letter-spacing:1px;color:rgba(255,255,255,.6)}
+.cart.dmg .badge{color:rgba(40,40,90,.55)}
+.libItem{position:relative}
+.libItem .t{margin-top:6px;font:600 12px/1.25 sans-serif;color:#ddd;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.libItem .m{font:500 10.5px sans-serif;color:#777;margin-top:2px}
+.libItem .del{position:absolute;top:-6px;right:-6px;width:24px;height:24px;border-radius:12px;border:0;background:#c33;color:#fff;font:700 13px sans-serif;display:none}
+#lib.edit .libItem .del{display:block}
+#lib.edit .cart{animation:wob .25s infinite alternate}
+@keyframes wob{from{transform:rotate(-1.2deg)}to{transform:rotate(1.2deg)}}
+.libEmpty{color:#888;text-align:center;margin-top:60px;line-height:1.6;font-size:14px}
+
 /* ---------- Menü ---------- */
 #menu{position:fixed;inset:0;z-index:30;background:rgba(0,0,0,.6);display:none;align-items:flex-end;justify-content:center}
 #menu.open{display:flex}
@@ -132,6 +169,7 @@ html,body{background:#000!important;overflow:hidden;overscroll-behavior:none;hei
 
 <div id="menu"><div class="sheet">
   <h3>Spiel</h3>
+  <div class="row"><button id="libBtn" style="flex-basis:100%">📚 Bibliothek</button></div>
   <div class="row"><button id="demoBtn">🎮 Demo</button><button id="urlBtn">🌐 Link</button><label class="filebtn">📂 ROM laden<input id="romInput" type="file" accept=".gb,.gbc,.gba,.zip"></label></div>
   <h3>Gerät</h3>
   <div class="row" id="models">
@@ -149,10 +187,20 @@ html,body{background:#000!important;overflow:hidden;overscroll-behavior:none;hei
   <div class="row"><button id="closeMenu">Schließen</button></div>
 </div></div>
 
+<div id="lib">
+  <div class="top"><h2>Bibliothek</h2><button class="x" id="libEdit">Bearbeiten</button><button class="x" id="libClose">✕</button></div>
+  <input id="libSearch" type="search" placeholder="Spiel suchen …" autocomplete="off">
+  <div id="libChips">
+    <button data-f="all" class="sel">Alle</button><button data-f="dmg">Game Boy</button><button data-f="gbc">Color</button><button data-f="gba">Advance</button>
+    <button data-s="recent" class="sel">Zuletzt gespielt</button><button data-s="az">A–Z</button><button data-s="added">Neu hinzugefügt</button>
+  </div>
+  <div id="libList"></div>
+</div>
 <div id="help"><div class="sheet">
-  <h2>So funktioniert PocketBoy <span style="font-size:11px;color:#777">v20</span></h2>
+  <h2>So funktioniert PocketBoy <span style="font-size:11px;color:#777">v21</span></h2>
   <h4>Spiel starten</h4>
   <ul><li><b>MENÜ → 🎮 Demo</b> startet ein kleines eingebautes Testspiel: Ball mit dem Steuerkreuz bewegen, <b>A</b> tauscht die Farben.</li>
+  <li><b>MENÜ → 📚 Bibliothek</b> zeigt alle Spiele, die du schon geladen hast, sortiert nach Konsole. Mit Suche, Filter und Sortierung. Ein Bild aus dem Spiel wird nach ein paar Sekunden automatisch zum Cover. „Bearbeiten“ zum Löschen.</li>
   <li><b>MENÜ → 🌐 Link</b> lädt ein Spiel direkt aus dem Internet. Nötig ist ein direkter Datei-Link (endet auf .gb/.gbc/.gba/.zip), und der Server muss den Zugriff erlauben. Sonst die Datei herunterladen und über ROM laden öffnen.</li>
   <li><b>MENÜ → 📂 ROM laden</b> öffnet die Dateien-App. Erlaubt sind <b>.gb</b>, <b>.gbc</b>, <b>.gba</b> (auch als .zip).</li>
   <li>Unter <b>Gerät → Automatisch</b> wird das Gehäuse passend zur Dateiendung gewählt. Du kannst es aber auch fix einstellen.</li></ul>
@@ -185,7 +233,7 @@ html,body{background:#000!important;overflow:hidden;overscroll-behavior:none;hei
 function pblog(m){ try{ const l=JSON.parse(localStorage.getItem('pb_log')||'[]'); const d=new Date();
   l.push(d.toTimeString().slice(0,8)+' '+m); while(l.length>60) l.shift(); localStorage.setItem('pb_log',JSON.stringify(l)); }catch(_){} }
 addEventListener('error', e => pblog('FEHLER '+e.message));
-(()=>{ const n=performance.getEntriesByType('navigation')[0]; pblog('--- Seite geöffnet ('+(n?n.type:'?')+') v20 '+innerWidth+'x'+innerHeight+' screen '+screen.width+'x'+screen.height+(matchMedia('(display-mode: standalone)').matches?' standalone':'')+(navigator.standalone?' App':' Safari')); })();
+(()=>{ const n=performance.getEntriesByType('navigation')[0]; pblog('--- Seite geöffnet ('+(n?n.type:'?')+') v21 '+innerWidth+'x'+innerHeight+' screen '+screen.width+'x'+screen.height+(matchMedia('(display-mode: standalone)').matches?' standalone':'')+(navigator.standalone?' App':' Safari')); })();
 /* ================= Zurück-Wischgeste von Safari abfangen =================
    Ein Wischen vom linken Rand (z. B. am Steuerkreuz) würde sonst die Seite verlassen. */
 try{ history.replaceState({pb:0},''); history.pushState({pb:1},''); }catch(_){}
@@ -334,7 +382,7 @@ function build(){
   skin.innerHTML = L.html;
   scr.style.cssText = `${box(b.x,b.y,b.w,b.h)};--px:${L.px}px;z-index:2`;
   const idle = document.getElementById('idle');
-  idle.innerHTML = rom ? 'Lädt …' : 'MENÜ → Demo oder ROM<br><span style="font-weight:400;font-size:11px">.gb · .gbc · .gba</span>';
+  idle.innerHTML = rom ? 'Lädt …' : 'MENÜ → Bibliothek, Demo oder ROM<br><span style="font-weight:400;font-size:11px">.gb · .gbc · .gba</span>';
   idle.style.display = document.getElementById('emu') ? 'none' : '';
   setLed(started); bindInputs();
   document.getElementById('helpDot').onclick = ()=>document.getElementById('help').classList.add('open');
@@ -394,7 +442,7 @@ function refresh(){
 }
 const pressed = new Set();
 function onTouch(e){
-  if(e.target.closest('#menu,.knob,#help,.screw')) return;
+  if(e.target.closest('#menu,.knob,#help,.screw,#lib')) return;
   e.preventDefault(); resumeAudio();
   for(const t of e.changedTouches){
     if(e.type==='touchend'||e.type==='touchcancel') held.delete(t.identifier);
@@ -447,6 +495,76 @@ document.getElementById('urlBtn').onclick = async ()=>{
       : e.message);
   }
 };
+/* ================= Bibliothek ================= */
+const KN = {dmg:'Game Boy', gbc:'Game Boy Color', gba:'Game Boy Advance'};
+const cleanTitle = n => n.replace(/\.(gba|gbc|gb|zip)$/i,'').replace(/\s*[\(\[][^\)\]]*[\)\]]/g,'').replace(/_/g,' ').trim() || n;
+const libF = {f:'all', s:'recent', q:''};
+async function libAdd(name, kind, buf){
+  const old = await get('meta:'+name).catch(()=>null);
+  await put('rom:'+name, buf);
+  await put('meta:'+name, Object.assign(old||{added:Date.now(), plays:0}, {name, kind, title:cleanTitle(name), size:buf.byteLength, played:Date.now(), plays:((old&&old.plays)||0)+1}));
+}
+async function libAll(){
+  const d = await db; return new Promise(res=>{ const out=[]; const t=d.transaction('s','readonly').objectStore('s').openCursor();
+    t.onsuccess=e=>{ const c=e.target.result; if(!c) return res(out); if(String(c.key).startsWith('meta:')) out.push(c.value); c.continue(); }; t.onerror=()=>res(out); });
+}
+async function libRender(){
+  const list = document.getElementById('libList');
+  let items = await libAll();
+  const q = libF.q.toLowerCase();
+  if(q) items = items.filter(i=>i.title.toLowerCase().includes(q) || i.name.toLowerCase().includes(q));
+  if(libF.f!=='all') items = items.filter(i=>i.kind===libF.f);
+  const sorters = {recent:(a,b)=>(b.played||0)-(a.played||0), az:(a,b)=>a.title.localeCompare(b.title,'de'), added:(a,b)=>(b.added||0)-(a.added||0)};
+  items.sort(sorters[libF.s]);
+  if(!items.length){ list.innerHTML = `<div class="libEmpty">${q||libF.f!=='all' ? 'Nichts gefunden.' : 'Noch keine Spiele.<br>Lade ein Spiel über MENÜ → 📂 ROM laden oder 🌐 Link –<br>es landet automatisch hier.'}</div>`; return; }
+  const covers = {};
+  await Promise.all(items.map(async i=>{ covers[i.name] = await get('cover:'+i.name).catch(()=>null); }));
+  const esc = t => t.replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const card = i => `<div class="libItem" data-n="${esc(i.name)}">
+      <div class="cart ${i.kind}"><div class="label">${covers[i.name]?`<img src="${covers[i.name]}" alt="">`:''}<span>${esc(i.title)}</span></div>
+      <div class="badge">${i.kind==='gba'?'ADVANCE':i.kind==='gbc'?'COLOR':'GAME BOY'}</div></div>
+      <div class="t">${esc(i.title)}</div><div class="m">${i.plays||1}× gespielt · ${Math.max(1,Math.round(i.size/1024))>1023?(i.size/1048576).toFixed(1)+' MB':Math.round(i.size/1024)+' KB'}</div>
+      <button class="del" aria-label="Löschen">✕</button></div>`;
+  const groups = libF.f==='all' ? ['gba','gbc','dmg'] : [libF.f];
+  list.innerHTML = groups.map(k=>{ const g=items.filter(i=>i.kind===k); return g.length ? `<div class="libSec">${KN[k]} · ${g.length}</div><div class="libGrid">${g.map(card).join('')}</div>` : ''; }).join('');
+}
+document.getElementById('libList').addEventListener('click', async e=>{
+  const it = e.target.closest('.libItem'); if(!it) return;
+  const n = it.dataset.n;
+  if(e.target.classList.contains('del')){
+    if(!confirm('„'+cleanTitle(n)+'“ aus der Bibliothek löschen?')) return;
+    await idb('readwrite',st=>{ ['rom:','meta:','cover:'].forEach(p=>st.delete(p+n)); });
+    return libRender();
+  }
+  if(document.getElementById('lib').classList.contains('edit')) return;
+  const buf = await get('rom:'+n); if(!buf) return toast('Datei fehlt');
+  document.getElementById('lib').classList.remove('open');
+  loadRom(new File([buf], n));
+});
+document.getElementById('libSearch').addEventListener('input', e=>{ libF.q=e.target.value; libRender(); });
+document.getElementById('libChips').addEventListener('click', e=>{ const b=e.target.closest('button'); if(!b) return;
+  if(b.dataset.f){ libF.f=b.dataset.f; document.querySelectorAll('#libChips [data-f]').forEach(x=>x.classList.toggle('sel',x===b)); }
+  if(b.dataset.s){ libF.s=b.dataset.s; document.querySelectorAll('#libChips [data-s]').forEach(x=>x.classList.toggle('sel',x===b)); }
+  libRender(); });
+document.getElementById('libBtn').onclick = ()=>{ closeMenu(); document.getElementById('lib').classList.add('open'); libRender(); };
+document.getElementById('libClose').onclick = ()=>document.getElementById('lib').classList.remove('open','edit');
+document.getElementById('libEdit').onclick = e=>{ const l=document.getElementById('lib'); l.classList.toggle('edit'); e.target.textContent = l.classList.contains('edit')?'Fertig':'Bearbeiten'; };
+// Cover: Bild aus dem laufenden Spiel übernehmen
+async function grabCover(){
+  if(!started || !rom || rom.name==='PocketBoy-Demo.gb') return;
+  try{
+    const c = document.getElementById('emu').contentDocument.querySelector('canvas'); if(!c) return;
+    const ar = cur==='gba' ? 1.5 : 160/144, W = 240, H = Math.round(W/ar);
+    const o = document.createElement('canvas'); o.width=W; o.height=H;
+    const g = o.getContext('2d'); g.imageSmoothingEnabled=false;
+    const sw = c.width, sh = c.height, ca = sw/sh;           // Spielbild mittig aus der Fläche schneiden
+    let w=sw, h=sh; if(ca>ar) w=sh*ar; else h=sw/ar;
+    g.drawImage(c,(sw-w)/2,(sh-h)/2,w,h,0,0,W,H);
+    const px = g.getImageData(W/2-20,H/2-20,40,40).data; let sum=0; for(let i=0;i<px.length;i+=4) sum+=px[i]+px[i+1]+px[i+2];
+    if(sum < 40*40*30) return;                                // schwarzes Bild nicht übernehmen
+    await put('cover:'+rom.name, o.toDataURL('image/jpeg',0.8)); pblog('Cover gespeichert');
+  }catch(e){ pblog('Cover-Fehler '+e.message); }
+}
 document.getElementById('closeHelp').onclick=()=>document.getElementById('help').classList.remove('open');
 document.getElementById('help').addEventListener('click',e=>{ if(e.target.id==='help') e.target.classList.remove('open'); });
 /* ROM-Typ am Inhalt erkennen (nicht an der Endung) */
@@ -492,6 +610,7 @@ async function loadRom(f, resume){
   f = new File([buf], name);
   S.model = 'auto'; saveSet();
   try{ await put('lastrom', {name, buf}); }catch(_){}
+  if(name!=='PocketBoy-Demo.gb') libAdd(name, kind, buf).catch(()=>{});
   rom = { file:f, name:f.name, kind };
   const ext = f.name.toLowerCase().split('.').pop();
   const isGBA = kind==='gba';
@@ -520,6 +639,7 @@ addEventListener('message', async e => {
     if(S.sound) bootSound();
     const st = window.__skipState ? null : await get('auto2:'+rom.core+':'+rom.name);
     window.__skipState = false;
+    clearTimeout(window.__cv); window.__cv = setTimeout(grabCover, 12000);
     pblog('läuft'+(st?', Spielstand '+Math.round(st.byteLength/1024)+'KB wird geladen':''));
     if(st){ setTimeout(()=>{ try{ ejs().gameManager.loadState(st); pblog('Spielstand geladen'); toast('Weitergespielt, wo du aufgehört hast'); }catch(_){} }, 600); }
   }

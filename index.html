@@ -150,7 +150,7 @@ html,body{background:#000!important;overflow:hidden;overscroll-behavior:none;hei
 </div></div>
 
 <div id="help"><div class="sheet">
-  <h2>So funktioniert PocketBoy <span style="font-size:11px;color:#777">v16</span></h2>
+  <h2>So funktioniert PocketBoy <span style="font-size:11px;color:#777">v17</span></h2>
   <h4>Spiel starten</h4>
   <ul><li><b>MENÜ → 🎮 Demo</b> startet ein kleines eingebautes Testspiel: Ball mit dem Steuerkreuz bewegen, <b>A</b> tauscht die Farben.</li>
   <li><b>MENÜ → 📂 ROM laden</b> öffnet die Dateien-App. Erlaubt sind <b>.gb</b>, <b>.gbc</b>, <b>.gba</b> (auch als .zip).</li>
@@ -184,7 +184,7 @@ html,body{background:#000!important;overflow:hidden;overscroll-behavior:none;hei
 function pblog(m){ try{ const l=JSON.parse(localStorage.getItem('pb_log')||'[]'); const d=new Date();
   l.push(d.toTimeString().slice(0,8)+' '+m); while(l.length>60) l.shift(); localStorage.setItem('pb_log',JSON.stringify(l)); }catch(_){} }
 addEventListener('error', e => pblog('FEHLER '+e.message));
-(()=>{ const n=performance.getEntriesByType('navigation')[0]; pblog('--- Seite geöffnet ('+(n?n.type:'?')+') v16 '+innerWidth+'x'+innerHeight+' screen '+screen.width+'x'+screen.height+(matchMedia('(display-mode: standalone)').matches?' standalone':'')+(navigator.standalone?' App':' Safari')); })();
+(()=>{ const n=performance.getEntriesByType('navigation')[0]; pblog('--- Seite geöffnet ('+(n?n.type:'?')+') v17 '+innerWidth+'x'+innerHeight+' screen '+screen.width+'x'+screen.height+(matchMedia('(display-mode: standalone)').matches?' standalone':'')+(navigator.standalone?' App':' Safari')); })();
 /* ================= Zurück-Wischgeste von Safari abfangen =================
    Ein Wischen vom linken Rand (z. B. am Steuerkreuz) würde sonst die Seite verlassen. */
 try{ history.replaceState({pb:0},''); history.pushState({pb:1},''); }catch(_){}
@@ -409,8 +409,10 @@ addEventListener('keydown',e=>{const k=KB[e.key]; if(k&&!pressed.has(k)){pressed
 addEventListener('keyup',e=>{const k=KB[e.key]; if(k){pressed.delete(k);press(k,false);}});
 
 function resumeAudio(){
-  try{ const e=ejs(); const c=e&&e.Module&&e.Module.AL&&e.Module.AL.currentCtx; if(c&&c.audioCtx) c.audioCtx.resume(); }catch(_){}
+  try{ const w=document.getElementById('emu').contentWindow; w.__resumeAudio && w.__resumeAudio(); }catch(_){}
 }
+// Freischalten muss in einem echten Tipp-Ereignis passieren
+['touchend','click','keydown'].forEach(t=>document.addEventListener(t, resumeAudio, true));
 
 /* ================= ROM laden ================= */
 document.getElementById('romInput').addEventListener('change', ev => {
@@ -514,8 +516,9 @@ setInterval(autoSave, 30000);
 let hbT0 = 0;
 setInterval(()=>{ if(!started) return; if(!hbT0) hbT0=Date.now();
   let gl='?'; try{ const c=document.getElementById('emu').contentDocument.querySelector('canvas'); gl = c ? (c.width+'x'+c.height) : 'kein canvas'; }catch(_){}
+  let au='?'; try{ au=document.getElementById('emu').contentWindow.__ctxs.map(c=>c.state[0]).join('')||'keiner'; }catch(_){}
   let mem='?'; try{ const M=ejs().Module; mem=Math.round((M.HEAPU8||M.HEAP8).buffer.byteLength/1048576)+'MB'; }catch(_){}
-  pblog('♥ '+Math.round((Date.now()-hbT0)/1000)+'s tasten='+presses+' mem='+mem+' canvas='+gl+(turbo?' TURBO':'')); presses=0; }, 3000);
+  pblog('♥ '+Math.round((Date.now()-hbT0)/1000)+'s tasten='+presses+' mem='+mem+' audio='+au+' canvas='+gl+(turbo?' TURBO':'')); presses=0; }, 3000);
 document.getElementById('saveBtn').onclick = async ()=>{
   const e=ejs(); if(!started) return toast('Kein Spiel geladen');
   await put('slot2:'+rom.core+':'+rom.name, e.gameManager.getState()); toast('Gespeichert'); closeMenu();

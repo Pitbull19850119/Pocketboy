@@ -47,6 +47,13 @@ function romKind(buf,name){
   if(u.length>0x143 && (u[0x143]&0x80)) return 'gbc';                     // Color-Flag im GB-Header
   return 'dmg';
 }
+// Alle AudioContexts des Emulators erfassen, damit die Hauptseite sie bei Berührung freischalten kann
+window.__ctxs = [];
+(()=>{ const AC = window.AudioContext || window.webkitAudioContext; if(!AC) return;
+  class PBAudio extends AC { constructor(...a){ super(...a); window.__ctxs.push(this);
+      this.addEventListener && this.addEventListener('statechange', ()=>pl('Audio '+this.state)); } }
+  window.AudioContext = PBAudio; window.webkitAudioContext = PBAudio; })();
+window.__resumeAudio = () => { window.__ctxs.forEach(c=>{ if(c.state!=='running' && c.state!=='closed') c.resume().catch(()=>{}); }); };
 // alte, gespeicherte EmulatorJS-Einstellungen entfernen (könnten Rewind wieder einschalten)
 try{ Object.keys(localStorage).filter(k=>/^ejs/i.test(k)).forEach(k=>localStorage.removeItem(k)); }catch(_){}
 (async () => {

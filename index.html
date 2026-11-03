@@ -149,7 +149,7 @@ html,body{margin:0;height:100%;overflow:hidden;background:#111;touch-action:none
 </div></div>
 
 <div id="help"><div class="sheet">
-  <h2>So funktioniert PocketBoy <span style="font-size:11px;color:#777">v5</span></h2>
+  <h2>So funktioniert PocketBoy <span style="font-size:11px;color:#777">v6</span></h2>
   <h4>Spiel starten</h4>
   <ul><li><b>MENÜ → 🎮 Demo</b> startet ein kleines eingebautes Testspiel: Ball mit dem Steuerkreuz bewegen, <b>A</b> tauscht die Farben.</li>
   <li><b>MENÜ → 📂 ROM laden</b> öffnet die Dateien-App. Erlaubt sind <b>.gb</b>, <b>.gbc</b>, <b>.gba</b> (auch als .zip).</li>
@@ -296,15 +296,21 @@ function build(){
   const W = rot ? VH : VW, H = rot ? VW : VH;
   const ins = rot ? {t:10,r:10,b:10,l:10} : insets();
   const L = wantLand ? landscape(W,H,ins) : portrait(W,H,ins,m);
-  const keepFrame = document.getElementById('emu');
   dev.className = 'dev ' + m + (S.grid?' grid-on':'');
   dev.style.cssText = `width:${W}px;height:${H}px;transform:translate(-50%,-50%) rotate(${rot}deg);--curve:${R(W*0.2)}px`;
   const b = L.scr;
-  dev.innerHTML = L.html + `<div class="screen" id="scr" style="${box(b.x,b.y,b.w,b.h)};--px:${L.px}px;z-index:2">
-      <div class="idle" id="idle">${rom?'Lädt …':'MENÜ → Demo oder ROM<br><span style="font-weight:400;font-size:11px">.gb · .gbc · .gba</span>'}</div>
-      <div class="shade"></div><div class="grid"></div></div>`;
-  if(keepFrame){ document.getElementById('scr').insertBefore(keepFrame, document.querySelector('#scr .shade'));
-    document.getElementById('idle').style.display='none'; }
+  // Das Display (mit dem Emulator-iframe) bleibt dauerhaft im DOM – sonst lädt Safari das Spiel neu.
+  let skin = document.getElementById('skin'), scr = document.getElementById('scr');
+  if(!skin){
+    dev.innerHTML = `<div id="skin"></div><div class="screen" id="scr">
+      <div class="idle" id="idle"></div><div class="shade"></div><div class="grid"></div></div>`;
+    skin = document.getElementById('skin'); scr = document.getElementById('scr');
+  }
+  skin.innerHTML = L.html;
+  scr.style.cssText = `${box(b.x,b.y,b.w,b.h)};--px:${L.px}px;z-index:2`;
+  const idle = document.getElementById('idle');
+  idle.innerHTML = rom ? 'Lädt …' : 'MENÜ → Demo oder ROM<br><span style="font-weight:400;font-size:11px">.gb · .gbc · .gba</span>';
+  idle.style.display = document.getElementById('emu') ? 'none' : '';
   setLed(started); bindInputs();
   document.getElementById('helpDot').onclick = ()=>document.getElementById('help').classList.add('open');
   document.getElementById('menuBtn').onclick = openMenu;
@@ -312,7 +318,10 @@ function build(){
   document.getElementById('turboBtn').classList.toggle('on', turbo);
 }
 function fit(){ build(); }
-let rz; addEventListener('resize', ()=>{ clearTimeout(rz); rz=setTimeout(build,120); });
+let rz, lastWH='';
+addEventListener('resize', ()=>{ clearTimeout(rz); rz=setTimeout(()=>{
+  const k = (innerWidth>innerHeight)+':'+Math.round(innerWidth/40)+':'+Math.round(innerHeight/40);
+  if(k!==lastWH){ lastWH=k; build(); } },150); });
 addEventListener('orientationchange', ()=>setTimeout(build,250));
 
 function setLed(on){ const l=dev.querySelector('.led'); if(l) l.classList.toggle('on',!!on); }
@@ -417,8 +426,8 @@ function romKind(buf,name){
   if(u.length>0x143 && (u[0x143]&0x80)) return 'gbc';                     // Color-Flag im GB-Header
   return 'dmg';
 }
-async function loadRom(f){
-  await autoSave();
+async function loadRom(f, resume){
+  if(!resume) await autoSave();
   let buf = await f.arrayBuffer(), name = f.name;
   if(new Uint8Array(buf,0,2)[0]===0x50 && new Uint8Array(buf,0,2)[1]===0x4B){
     const z = await unzipFirst(buf).catch(()=>null);
@@ -429,6 +438,7 @@ async function loadRom(f){
   name = name.replace(/\.(zip|gb|gbc|gba)$/i,'') + (kind==='gba'?'.gba':kind==='gbc'?'.gbc':'.gb');
   f = new File([buf], name);
   S.model = 'auto'; saveSet();
+  try{ await put('lastrom', {name, buf}); }catch(_){}
   rom = { file:f, name:f.name, kind };
   const ext = f.name.toLowerCase().split('.').pop();
   const isGBA = kind==='gba';
@@ -444,7 +454,8 @@ async function loadRom(f){
   closeMenu(); build();
   const fr = document.createElement('iframe'); fr.id='emu'; fr.src='emu.html?'+Date.now();
   fr.setAttribute('allow','autoplay; gamepad');
-  document.getElementById('scr').insertBefore(fr, document.querySelector('#scr .grid'));
+  document.getElementById('scr').insertBefore(fr, document.querySelector('#scr .shade'));
+  document.getElementById('idle').style.display='none';
 }
 addEventListener('message', async e => {
   if(e.data && e.data.t==='kind' && rom && rom.kind!==e.data.kind){ rom.kind=e.data.kind; S.model='auto'; build(); }
@@ -515,5 +526,7 @@ function toast(t){ const el=document.getElementById('toast'); el.textContent=t; 
   clearTimeout(toast._t); toast._t=setTimeout(()=>el.classList.remove('show'),1800); }
 
 build();
+// Nach einem Neustart durch iOS das letzte Spiel automatisch fortsetzen
+get('lastrom').then(r=>{ if(r && r.buf && !rom){ loadRom(new File([r.buf], r.name), true); } }).catch(()=>{});
 </script>
 </body></html>

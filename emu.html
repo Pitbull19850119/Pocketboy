@@ -65,10 +65,13 @@ function romKind(buf,name){
   window.EJS_startOnLoaded = true;
   window.EJS_disableDatabases = true;   // keine Kopien von Spiel/Kern in IndexedDB
   window.EJS_threads = false;
+  window.EJS_webgl2Enabled = false;      // WebGL2 auf iOS instabil -> einfacher Modus
+  window.EJS_defaultOptions_extra = {'webgl2Enabled':'disabled','shader':'disabled','rewindEnabled':'disabled','save-state-location':'browser'};
   window.EJS_backgroundColor = '#000';
   window.EJS_defaultOptions = kind==='gba' ? {'mgba_skip_bios':'ON','mgba_interframe_blending':'mix'}
     : Object.assign({'gambatte_gb_colorization':'internal','gambatte_gb_internal_palette':'GB - DMG','gambatte_mix_frames':'mix'},
         (P.__rom.coreOpts && !P.__rom.coreOpts.mgba_skip_bios) ? P.__rom.coreOpts : {});
+  Object.assign(window.EJS_defaultOptions, window.EJS_defaultOptions_extra);
   window.EJS_onGameStart = () => { pl('Spiel gestartet'); P.postMessage({ t: 'started' }, '*'); };
   window.EJS_ready = () => pl('Kern bereit ('+window.EJS_core+')');
   const s = document.createElement('script');

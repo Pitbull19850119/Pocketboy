@@ -150,7 +150,7 @@ html,body{background:#000!important;overflow:hidden;overscroll-behavior:none;hei
 </div></div>
 
 <div id="help"><div class="sheet">
-  <h2>So funktioniert PocketBoy <span style="font-size:11px;color:#777">v14</span></h2>
+  <h2>So funktioniert PocketBoy <span style="font-size:11px;color:#777">v15</span></h2>
   <h4>Spiel starten</h4>
   <ul><li><b>MENÜ → 🎮 Demo</b> startet ein kleines eingebautes Testspiel: Ball mit dem Steuerkreuz bewegen, <b>A</b> tauscht die Farben.</li>
   <li><b>MENÜ → 📂 ROM laden</b> öffnet die Dateien-App. Erlaubt sind <b>.gb</b>, <b>.gbc</b>, <b>.gba</b> (auch als .zip).</li>
@@ -184,7 +184,7 @@ html,body{background:#000!important;overflow:hidden;overscroll-behavior:none;hei
 function pblog(m){ try{ const l=JSON.parse(localStorage.getItem('pb_log')||'[]'); const d=new Date();
   l.push(d.toTimeString().slice(0,8)+' '+m); while(l.length>60) l.shift(); localStorage.setItem('pb_log',JSON.stringify(l)); }catch(_){} }
 addEventListener('error', e => pblog('FEHLER '+e.message));
-(()=>{ const n=performance.getEntriesByType('navigation')[0]; pblog('--- Seite geöffnet ('+(n?n.type:'?')+') v14 '+innerWidth+'x'+innerHeight+' screen '+screen.width+'x'+screen.height+(matchMedia('(display-mode: standalone)').matches?' standalone':'')+(navigator.standalone?' App':' Safari')); })();
+(()=>{ const n=performance.getEntriesByType('navigation')[0]; pblog('--- Seite geöffnet ('+(n?n.type:'?')+') v15 '+innerWidth+'x'+innerHeight+' screen '+screen.width+'x'+screen.height+(matchMedia('(display-mode: standalone)').matches?' standalone':'')+(navigator.standalone?' App':' Safari')); })();
 /* ================= Zurück-Wischgeste von Safari abfangen =================
    Ein Wischen vom linken Rand (z. B. am Steuerkreuz) würde sonst die Seite verlassen. */
 try{ history.replaceState({pb:0},''); history.pushState({pb:1},''); }catch(_){}
@@ -359,7 +359,9 @@ function press(k,down){
   if(down) haptic();
 }
 const hapLbl = document.getElementById('hap');
+let presses=0;
 function haptic(){
+  presses++;
   if(!S.haptic) return;
   if(navigator.vibrate) navigator.vibrate(12); else hapLbl.click();
 }
@@ -477,7 +479,7 @@ async function loadRom(f, resume){
     'gambatte_gb_internal_palette': 'GB - DMG',
     'gambatte_gb_hwmode': currentModel()==='dmg' ? 'GB' : 'Auto'
   };
-  window.__rom = rom; started = false;
+  window.__rom = rom; started = false; hbT0 = 0;
   pblog('lade '+name+' kern='+rom.core+(resume?' (fortsetzen)':''));
   try{ localStorage.setItem('pb_boot', String(Date.now())); }catch(_){}
   const old = document.getElementById('emu'); if(old) old.remove();
@@ -508,6 +510,11 @@ async function autoSave(){
 document.addEventListener('visibilitychange', ()=>{ pblog(document.hidden?'App im Hintergrund':'App wieder vorne'); if(document.hidden) autoSave(); });
 addEventListener('pagehide', autoSave);
 setInterval(autoSave, 30000);
+// Lebenszeichen alle 5 s (zeigt im Protokoll, wann genau es abbricht)
+let hbT0 = 0;
+setInterval(()=>{ if(!started) return; if(!hbT0) hbT0=Date.now();
+  let gl='?'; try{ const c=document.getElementById('emu').contentDocument.querySelector('canvas'); gl = c ? (c.width+'x'+c.height) : 'kein canvas'; }catch(_){}
+  pblog('♥ '+Math.round((Date.now()-hbT0)/1000)+'s tasten='+presses+' canvas='+gl+(turbo?' TURBO':'')); presses=0; }, 5000);
 document.getElementById('saveBtn').onclick = async ()=>{
   const e=ejs(); if(!started) return toast('Kein Spiel geladen');
   await put('slot2:'+rom.core+':'+rom.name, e.gameManager.getState()); toast('Gespeichert'); closeMenu();

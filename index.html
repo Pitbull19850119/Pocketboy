@@ -150,7 +150,7 @@ html,body{background:#000!important;overflow:hidden;overscroll-behavior:none;hei
 </div></div>
 
 <div id="help"><div class="sheet">
-  <h2>So funktioniert PocketBoy <span style="font-size:11px;color:#777">v17</span></h2>
+  <h2>So funktioniert PocketBoy <span style="font-size:11px;color:#777">v18</span></h2>
   <h4>Spiel starten</h4>
   <ul><li><b>MENÜ → 🎮 Demo</b> startet ein kleines eingebautes Testspiel: Ball mit dem Steuerkreuz bewegen, <b>A</b> tauscht die Farben.</li>
   <li><b>MENÜ → 📂 ROM laden</b> öffnet die Dateien-App. Erlaubt sind <b>.gb</b>, <b>.gbc</b>, <b>.gba</b> (auch als .zip).</li>
@@ -163,7 +163,7 @@ html,body{background:#000!important;overflow:hidden;overscroll-behavior:none;hei
   <li><b>⏩ TURBO</b> (oben am Gerät) spult vor, nochmal tippen beendet es.</li>
   <li>Am Mac: Pfeiltasten, X = A, Z = B, Enter = Start, Shift = Select, A/S = L/R.</li></ul>
   <h4>Speichern</h4>
-  <ul><li>Beim Verlassen der App und alle 30 Sekunden wird automatisch gesichert. Beim nächsten Laden derselben ROM geht es dort weiter.</li>
+  <ul><li>Beim Verlassen der App (oder Wechsel des Spiels) wird automatisch gesichert. Beim nächsten Laden derselben ROM geht es dort weiter.</li>
   <li>Zusätzlich gibt es <b>MENÜ → 💾 Speichern / 📥 Laden</b> als festen Speicherplatz pro Spiel.</li>
   <li>Die Spielstände liegen nur in diesem Browser auf diesem Gerät.</li></ul>
   <h4>Bild & Gefühl</h4>
@@ -184,7 +184,7 @@ html,body{background:#000!important;overflow:hidden;overscroll-behavior:none;hei
 function pblog(m){ try{ const l=JSON.parse(localStorage.getItem('pb_log')||'[]'); const d=new Date();
   l.push(d.toTimeString().slice(0,8)+' '+m); while(l.length>60) l.shift(); localStorage.setItem('pb_log',JSON.stringify(l)); }catch(_){} }
 addEventListener('error', e => pblog('FEHLER '+e.message));
-(()=>{ const n=performance.getEntriesByType('navigation')[0]; pblog('--- Seite geöffnet ('+(n?n.type:'?')+') v17 '+innerWidth+'x'+innerHeight+' screen '+screen.width+'x'+screen.height+(matchMedia('(display-mode: standalone)').matches?' standalone':'')+(navigator.standalone?' App':' Safari')); })();
+(()=>{ const n=performance.getEntriesByType('navigation')[0]; pblog('--- Seite geöffnet ('+(n?n.type:'?')+') v18 '+innerWidth+'x'+innerHeight+' screen '+screen.width+'x'+screen.height+(matchMedia('(display-mode: standalone)').matches?' standalone':'')+(navigator.standalone?' App':' Safari')); })();
 /* ================= Zurück-Wischgeste von Safari abfangen =================
    Ein Wischen vom linken Rand (z. B. am Steuerkreuz) würde sonst die Seite verlassen. */
 try{ history.replaceState({pb:0},''); history.pushState({pb:1},''); }catch(_){}
@@ -511,7 +511,7 @@ async function autoSave(){
 }
 document.addEventListener('visibilitychange', ()=>{ pblog(document.hidden?'App im Hintergrund':'App wieder vorne'); if(document.hidden) autoSave(); });
 addEventListener('pagehide', autoSave);
-setInterval(autoSave, 30000);
+// kein periodischer Autosave mehr: auf iOS 26 löst der Speichervorgang einen WebKit-Speicherfehler aus
 // Lebenszeichen alle 5 s (zeigt im Protokoll, wann genau es abbricht)
 let hbT0 = 0;
 setInterval(()=>{ if(!started) return; if(!hbT0) hbT0=Date.now();

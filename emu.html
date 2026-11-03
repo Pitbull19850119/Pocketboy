@@ -75,7 +75,7 @@ try{ Object.keys(localStorage).filter(k=>/^ejs/i.test(k)).forEach(k=>localStorag
   window.EJS_disableDatabases = true;   // keine Kopien von Spiel/Kern in IndexedDB
   window.EJS_threads = false;
   window.EJS_webgl2Enabled = false;      // WebGL2 auf iOS instabil -> einfacher Modus
-  window.EJS_defaultOptions_extra = {'webgl2Enabled':'disabled','shader':'disabled','rewindEnabled':'disabled','save-state-location':'browser'};
+  window.EJS_defaultOptions_extra = {'save-save-interval':'0','webgl2Enabled':'disabled','shader':'disabled','rewindEnabled':'disabled','save-state-location':'browser'};
   window.EJS_backgroundColor = '#000';
   window.EJS_defaultOptions = kind==='gba' ? {'mgba_skip_bios':'ON','mgba_interframe_blending':'mix'}
     : Object.assign({'gambatte_gb_colorization':'internal','gambatte_gb_internal_palette':'GB - DMG','gambatte_mix_frames':'mix'},
@@ -84,10 +84,12 @@ try{ Object.keys(localStorage).filter(k=>/^ejs/i.test(k)).forEach(k=>localStorag
   window.EJS_onGameStart = () => { pl('Spiel gestartet');
     try{ const E=window.EJS_emulator;
       ['rewindEnabled'].forEach(k=>{ try{ E.changeSettingOption(k,'disabled'); }catch(_){} });
+      try{ E.changeSettingOption('save-save-interval','0'); }catch(_){}
+      try{ if(E.saveSaveInterval){ clearInterval(E.saveSaveInterval); E.saveSaveInterval=null; } }catch(_){}
       try{ E.gameManager.setRewindEnabled && E.gameManager.setRewindEnabled(false); }catch(_){}
       try{ E.gameManager.setVariable && E.gameManager.setVariable('rewind_enable','false'); }catch(_){}
       try{ E.gameManager.functions && E.gameManager.functions.toggleRewind && E.gameManager.functions.toggleRewind(0); }catch(_){}
-      pl('Rewind aus');
+      pl('Rewind + Auto-Intervall aus');
     }catch(e){ pl('Rewind-Fehler '+e.message); } P.postMessage({ t: 'started' }, '*'); };
   window.EJS_ready = () => pl('Kern bereit ('+window.EJS_core+')');
   const s = document.createElement('script');

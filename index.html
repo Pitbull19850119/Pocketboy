@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="de"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="PocketBoy">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon.png">
+<title>PocketBoy</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+html,body{margin:0;height:100%;overflow:hidden;background:#111;touch-action:none;font-family:-apple-system,system-ui,sans-serif}
+#stage{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+  padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+.dev{position:absolute;transform-origin:center;left:50%;top:50%}
+
+/* ---------- Gehäuse ---------- */
+.shell{position:relative;width:100%;height:100%;border-radius:14px 14px 70px 14px;
+  box-shadow:inset -6px -8px 0 rgba(0,0,0,.18),inset 4px 4px 0 rgba(255,255,255,.35),0 10px 30px rgba(0,0,0,.6)}
+.dmg .shell{background:#c9c6bd}
+.gbc .shell{background:linear-gradient(160deg,#7d55c7,#5b2fa8);border-radius:22px 22px 60px 22px}
+.gba .shell{background:linear-gradient(170deg,#5d4fd1,#3f2fa7);border-radius:90px/120px}
+.bezel{position:absolute;background:#55575f;border-radius:10px 10px 40px 10px;padding:14px 14px 10px}
+.gbc .bezel{background:#2b2b31;border-radius:14px 14px 40px 14px}
+.gba .bezel{background:#1d1d22;border-radius:12px}
+.screen{position:relative;background:#000;overflow:hidden}
+.screen iframe{position:absolute;inset:0;width:100%;height:100%;border:0;pointer-events:none}
+.screen .grid{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .2s;
+  background:repeating-linear-gradient(0deg,rgba(0,0,0,.22) 0 1px,transparent 1px var(--px)),
+             repeating-linear-gradient(90deg,rgba(0,0,0,.22) 0 1px,transparent 1px var(--px))}
+.grid-on .screen .grid{opacity:1}
+.dmg .screen iframe{filter:sepia(1) hue-rotate(40deg) saturate(1.4) brightness(.85) contrast(1.05)}
+.screen .idle{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  color:#9bbc0f;font:600 13px ui-monospace,monospace;text-align:center;gap:8px;background:#0f380f;pointer-events:none}
+.dmg .screen .idle{background:#8bac0f;color:#0f380f}
+.led{position:absolute;width:8px;height:8px;border-radius:50%;background:#400;box-shadow:inset 0 0 2px #000}
+.led.on{background:#ff2a2a;box-shadow:0 0 6px 2px rgba(255,40,40,.7)}
+.ledlbl{position:absolute;font:600 8px sans-serif;color:#aab;letter-spacing:.5px}
+.logo{position:absolute;font:italic 800 17px Futura,'Trebuchet MS',sans-serif;color:#2b2f8f;letter-spacing:.5px}
+.gbc .logo,.gba .logo{color:#e8e2ff}
+
+/* ---------- Tasten ---------- */
+.dpad{position:absolute;width:112px;height:112px}
+.dpad i{position:absolute;background:#222;border-radius:4px;box-shadow:0 3px 0 #000}
+.dpad .h{left:0;top:37px;width:112px;height:38px}
+.dpad .v{left:37px;top:0;width:38px;height:112px}
+.dpad .c{left:45px;top:45px;width:22px;height:22px;border-radius:50%;background:#1a1a1a;box-shadow:inset 0 2px 3px #000}
+.dpad.u .v{box-shadow:0 3px 0 #000,inset 0 18px 8px -8px rgba(0,0,0,.6)}
+.dpad.d .v{box-shadow:0 1px 0 #000,inset 0 -18px 8px -8px rgba(0,0,0,.6)}
+.dpad.l .h{box-shadow:0 3px 0 #000,inset 18px 0 8px -8px rgba(0,0,0,.6)}
+.dpad.r .h{box-shadow:0 3px 0 #000,inset -18px 0 8px -8px rgba(0,0,0,.6)}
+.btn{position:absolute;width:58px;height:58px;border-radius:50%;background:#a3175b;
+  box-shadow:0 4px 0 #5c0d33,inset 0 -3px 6px rgba(0,0,0,.3);transition:transform .04s}
+.gbc .btn,.gba .btn{background:#2c2c34;box-shadow:0 4px 0 #0c0c10,inset 0 -3px 6px rgba(0,0,0,.4)}
+.btn.p,.pill.p,.sh.p{transform:translateY(3px);box-shadow:0 1px 0 #000,inset 0 2px 6px rgba(0,0,0,.5)}
+.lbl{position:absolute;font:800 13px sans-serif;color:#2b2f8f}
+.gbc .lbl,.gba .lbl{color:#e8e2ff}
+.pill{position:absolute;width:52px;height:14px;border-radius:7px;background:#8a8a92;transform:rotate(-25deg);
+  box-shadow:0 2px 0 #555}
+.gba .pill{transform:none;width:20px;height:20px;border-radius:50%;background:#2c2c34;box-shadow:0 2px 0 #000}
+.pill.p{transform:rotate(-25deg) translateY(2px)}
+.gba .pill.p{transform:translateY(2px)}
+.plbl{position:absolute;font:700 9px sans-serif;color:#2b2f8f;letter-spacing:1px}
+.gbc .plbl,.gba .plbl{color:#e8e2ff}
+.sh{position:absolute;top:-6px;width:150px;height:34px;background:#3a2c9a;box-shadow:0 3px 0 #1d1660}
+.sh.L{left:24px;border-radius:40px 8px 0 0}.sh.R{right:24px;border-radius:8px 40px 0 0}
+.speaker{position:absolute;display:grid;grid-template-columns:repeat(6,6px);gap:5px;transform:rotate(-30deg)}
+.speaker b{width:6px;height:44px;border-radius:3px;background:rgba(0,0,0,.28);box-shadow:inset 0 2px 2px rgba(0,0,0,.4)}
+.tz{position:absolute;touch-action:none}.screw{z-index:5}  /* unsichtbare Touch-Zonen, etwas grösser als die Tasten */
+
+/* ---------- Menü ---------- */
+#menuBtn{position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:calc(env(safe-area-inset-right) + 10px);z-index:20;
+  width:40px;height:40px;border-radius:20px;border:0;background:rgba(255,255,255,.12);color:#fff;font-size:20px}
+#turboBtn{position:fixed;top:calc(env(safe-area-inset-top) + 8px);left:calc(env(safe-area-inset-left) + 10px);z-index:20;
+  height:40px;padding:0 14px;border-radius:20px;border:0;background:rgba(255,255,255,.12);color:#fff;font:700 13px sans-serif}
+#turboBtn.on{background:#ff8a00;color:#000}
+#menu{position:fixed;inset:0;z-index:30;background:rgba(0,0,0,.6);display:none;align-items:flex-end;justify-content:center}
+#menu.open{display:flex}
+.sheet{width:min(460px,100%);max-height:90%;overflow:auto;background:#1c1c22;color:#eee;border-radius:18px 18px 0 0;
+  padding:16px 16px calc(16px + env(safe-area-inset-bottom))}
+.sheet h3{margin:4px 0 10px;font-size:13px;color:#999;text-transform:uppercase;letter-spacing:1px}
+.row{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.row button,.filebtn{flex:1;min-width:90px;padding:12px 8px;border-radius:12px;border:0;background:#2e2e38;color:#fff;font:600 14px sans-serif;text-align:center}
+.row button.sel{background:#5b4bd8}
+#romInput{display:none}
+.note{font-size:12px;color:#888;line-height:1.4}
+#toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 20px);transform:translateX(-50%);z-index:40;
+  background:rgba(0,0,0,.85);color:#fff;padding:10px 16px;border-radius:12px;font:600 13px sans-serif;opacity:0;transition:opacity .3s;pointer-events:none}
+#toast.show{opacity:1}
+#rotate{position:fixed;inset:0;z-index:25;display:none;align-items:center;justify-content:center;color:#ccc;font:600 15px sans-serif;text-align:center;padding:30px;pointer-events:none}
+#hap{position:absolute;left:-999px;opacity:0}
+.screw{position:absolute;width:14px;height:14px;border-radius:50%;background:rgba(0,0,0,.14);
+  box-shadow:inset 1px 1px 2px rgba(0,0,0,.35),0 1px 0 rgba(255,255,255,.3);font:700 9px/14px sans-serif;
+  color:rgba(0,0,0,.3);text-align:center}
+#help{position:fixed;inset:0;z-index:35;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;padding:16px}
+#help.open{display:flex}
+.sheet{touch-action:pan-y;-webkit-overflow-scrolling:touch}
+#help .sheet{border-radius:18px;max-height:100%;-webkit-user-select:text;user-select:text}
+#help h2{margin:0 0 8px;font-size:18px}#help h4{margin:14px 0 4px;color:#b9b0ff;font-size:14px}
+#help p,#help li{font-size:13.5px;line-height:1.45;color:#ddd;margin:2px 0}#help ul{padding-left:18px;margin:4px 0}
+</style>
+</head>
+<body>
+<div id="stage"><div class="dev" id="dev"></div></div>
+<button id="turboBtn">⏩ Turbo</button>
+<button id="menuBtn">☰</button>
+<div id="rotate"></div>
+<div id="toast"></div>
+<!-- iOS-18-Haptik: Klick auf ein switch-Label löst ein Taptic-Klicken aus -->
+<label id="hap"><input type="checkbox" switch></label>
+
+<div id="menu"><div class="sheet">
+  <h3>Spiel</h3>
+  <div class="row"><button id="demoBtn">🎮 Demo</button><label class="filebtn">📂 ROM laden<input id="romInput" type="file" accept=".gb,.gbc,.gba,.zip"></label></div>
+  <h3>Gerät</h3>
+  <div class="row" id="models">
+    <button data-m="auto">Automatisch</button>
+    <button data-m="dmg">Klassisch</button>
+    <button data-m="gbc">Color</button>
+    <button data-m="gba">Advance</button>
+  </div>
+  <h3>Speicherstand</h3>
+  <div class="row"><button id="saveBtn">💾 Speichern</button><button id="loadBtn">📥 Laden</button></div>
+  <h3>Bild & Gefühl</h3>
+  <div class="row"><button id="gridBtn">Pixelraster</button><button id="ghostBtn">Nachzieh-Effekt</button><button id="hapBtn">Vibration</button><button id="sndBtn">Start-Sound</button></div>
+  <p class="note">Vollbild: in Safari auf Teilen → „Zum Home-Bildschirm“, dann über das Symbol starten.<br>
+  Der Spielstand wird automatisch gesichert, wenn du die App verlässt, und beim nächsten Start dieses Spiels fortgesetzt.</p>
+  <div class="row"><button id="closeMenu">Schließen</button></div>
+</div></div>
+
+<div id="help"><div class="sheet">
+  <h2>So funktioniert PocketBoy</h2>
+  <h4>Spiel starten</h4>
+  <ul><li><b>☰ → 🎮 Demo</b> startet ein kleines eingebautes Testspiel: Ball mit dem Steuerkreuz bewegen, <b>A</b> tauscht die Farben.</li>
+  <li><b>☰ → 📂 ROM laden</b> öffnet die Dateien-App. Erlaubt sind <b>.gb</b>, <b>.gbc</b>, <b>.gba</b> (auch als .zip).</li>
+  <li>Unter <b>Gerät → Automatisch</b> wird das Gehäuse passend zur Dateiendung gewählt. Du kannst es aber auch fix einstellen.</li></ul>
+  <h4>Vollbild wie eine echte Konsole</h4>
+  <p>In Safari auf <b>Teilen → „Zum Home-Bildschirm“</b> tippen und PocketBoy über das neue Symbol starten. Advance quer halten, Klassisch und Color hochkant.</p>
+  <h4>Steuerung</h4>
+  <ul><li>Steuerkreuz, A, B, Start und Select drückst du wie am Original. Mehrere Tasten gleichzeitig und Diagonalen gehen.</li>
+  <li>Beim Advance liegen <b>L</b> und <b>R</b> oben an den Schultern.</li>
+  <li><b>⏩ Turbo</b> (oben links) spult vor, nochmal tippen beendet es.</li>
+  <li>Am Mac: Pfeiltasten, X = A, Z = B, Enter = Start, Shift = Select, A/S = L/R.</li></ul>
+  <h4>Speichern</h4>
+  <ul><li>Beim Verlassen der App und alle 30 Sekunden wird automatisch gesichert. Beim nächsten Laden derselben ROM geht es dort weiter.</li>
+  <li>Zusätzlich gibt es <b>☰ → 💾 Speichern / 📥 Laden</b> als festen Speicherplatz pro Spiel.</li>
+  <li>Die Spielstände liegen nur in diesem Browser auf diesem Gerät.</li></ul>
+  <h4>Bild & Gefühl</h4>
+  <ul><li><b>Pixelraster</b> zeigt das LCD-Gitter, der <b>Nachzieh-Effekt</b> das typische Verwischen alter Displays (gilt ab dem nächsten Spielstart).</li>
+  <li><b>Vibration</b>: Das iPhone gibt ab iOS 18 ein leichtes Taptic-Klicken bei jedem Tastendruck. Ist der Lautlos-Modus an oder „Systemhaptik“ aus, spürst du nichts.</li>
+  <li>Bleibt der Ton stumm, tipp einmal auf eine Taste und prüf den Lautlos-Schalter.</li></ul>
+  <h4>Gut zu wissen</h4>
+  <p>Der Emulator-Kern (mGBA) wird beim ersten Spielstart aus dem Netz geladen. Lade nur ROMs, die du rechtlich nutzen darfst, also Homebrew, Freeware oder eigene Sicherungen, wo das erlaubt ist.</p>
+  <p style="color:#888;margin-top:10px">Diese Hilfe öffnest du über die kleine Schraube unten am Gehäuse.</p>
+  <div class="row" style="margin-top:12px"><button id="closeHelp">Alles klar</button></div>
+</div></div>
+
+<script>
+/* ================= Einstellungen ================= */
+const S = Object.assign({model:'auto',grid:true,ghost:true,haptic:true,sound:true},
+  JSON.parse(localStorage.getItem('pb_set')||'{}'));
+const saveSet = () => { try{localStorage.setItem('pb_set',JSON.stringify(S))}catch(e){} };
+
+/* ================= IndexedDB für Speicherstände ================= */
+const db = new Promise((res,rej)=>{const r=indexedDB.open('pocketboy',1);
+  r.onupgradeneeded=()=>r.result.createObjectStore('s');r.onsuccess=()=>res(r.result);r.onerror=rej;});
+const idb = (mode,fn) => db.then(d=>new Promise((res,rej)=>{const t=d.transaction('s',mode);const q=fn(t.objectStore('s'));
+  t.oncomplete=()=>res(q&&q.result);t.onerror=rej;}));
+const put=(k,v)=>idb('readwrite',s=>s.put(v,k)), get=k=>idb('readonly',s=>s.get(k));
+
+/* ================= Geräte-Layouts ================= */
+// Masse in CSS-px; das Gerät wird danach als Ganzes auf das Display skaliert.
+const MODELS = {
+ dmg:{w:360,h:600, scr:{x:40,y:38,w:280,h:252}, px:280/160, html:`
+   <div class="led" style="left:22px;top:118px"></div><div class="ledlbl" style="left:14px;top:132px">POWER</div>
+   <div class="logo" style="left:44px;top:334px">PocketBoy <span style="font-size:12px">classic</span></div>
+   ${dpad(30,360)}
+   ${abtn(266,372,'A')}${abtn(196,402,'B')}
+   ${pill(112,500,'SELECT','select')}${pill(180,500,'START','start')}
+   <div class="speaker" style="left:250px;top:480px">${'<b></b>'.repeat(6)}</div>`},
+ gbc:{w:340,h:560, scr:{x:50,y:40,w:240,h:216}, px:240/160, html:`
+   <div class="led" style="left:26px;top:110px"></div><div class="ledlbl" style="left:16px;top:124px">POWER</div>
+   <div class="logo" style="left:96px;top:282px">PocketBoy <span style="font-size:12px">COLOR</span></div>
+   ${dpad(28,330)}
+   ${abtn(250,338,'A')}${abtn(184,366,'B')}
+   ${pill(104,474,'SELECT','select')}${pill(172,474,'START','start')}
+   <div class="speaker" style="left:240px;top:452px">${'<b></b>'.repeat(5)}</div>`},
+ gba:{w:640,h:340, scr:{x:180,y:44,w:280,h:187}, px:280/240, html:`
+   <div class="sh L" data-k="l"></div><div class="sh R" data-k="r"></div>
+   <div class="tz" data-k="l" style="left:0;top:-20px;width:200px;height:70px"></div>
+   <div class="tz" data-k="r" style="right:0;top:-20px;width:200px;height:70px"></div>
+   <div class="led" style="left:476px;top:250px"></div>
+   <div class="logo" style="left:262px;top:262px;font-size:15px">PocketBoy <span style="font-size:11px">ADVANCE</span></div>
+   ${dpad(36,104)}
+   ${abtn(548,104,'A')}${abtn(484,142,'B')}
+   ${pill(70,268,'START','start')}${pill(70,298,'SELECT','select')}
+   <div class="speaker" style="left:520px;top:236px;transform:rotate(0)">${'<b style="height:30px"></b>'.repeat(4)}</div>`}
+};
+function dpad(x,y){return `<div class="dpad" style="left:${x}px;top:${y}px"><i class="h"></i><i class="v"></i><i class="c"></i></div>
+  <div class="tz" data-dpad style="left:${x-24}px;top:${y-24}px;width:160px;height:160px"></div>`}
+function abtn(x,y,l){return `<div class="btn" data-k="${l.toLowerCase()}" style="left:${x}px;top:${y}px"></div>
+  <div class="lbl" style="left:${x+22}px;top:${y+64}px">${l}</div>
+  <div class="tz" data-k="${l.toLowerCase()}" style="left:${x-12}px;top:${y-12}px;width:82px;height:82px"></div>`}
+function pill(x,y,l,k){return `<div class="pill" data-k="${k}" style="left:${x}px;top:${y}px"></div>
+  <div class="plbl" style="left:${x+(k=='start'&&l.length<6?6:2)}px;top:${y+20}px;${document.body&&''}">${l}</div>
+  <div class="tz" data-k="${k}" style="left:${x-10}px;top:${y-14}px;width:72px;height:44px"></div>`}
+
+let cur = null, rom = null, started = false;
+const dev = document.getElementById('dev');
+
+function currentModel(){
+  if(S.model!=='auto') return S.model;
+  if(rom){const e=rom.name.toLowerCase().split('.').pop(); if(e==='gba')return'gba'; if(e==='gbc')return'gbc';}
+  return 'dmg';
+}
+function build(){
+  const m = currentModel(), M = MODELS[m]; cur = m; fit._warned = false;
+  const keepFrame = document.getElementById('emu');
+  dev.className = 'dev ' + m + (S.grid?' grid-on':'');
+  dev.style.width = M.w+'px'; dev.style.height = M.h+'px';
+  const b = M.scr;
+  const sx = m==='gba' ? M.w/2-7 : 22, sy = M.h-(m==='gba'?22:28);
+  dev.innerHTML = `<div class="shell"></div><div class="screw" id="helpDot" style="left:${sx}px;top:${sy}px">?</div>
+    <div class="bezel" style="left:${b.x-16}px;top:${b.y-16}px;width:${b.w+32}px;height:${b.h+32+(m==='gba'?0:20)}px"></div>
+    <div class="screen" id="scr" style="position:absolute;left:${b.x}px;top:${b.y}px;width:${b.w}px;height:${b.h}px;--px:${M.px}px">
+      <div class="idle" id="idle">${rom?'Lädt …':'☰ → Demo oder ROM laden<br><span style="font-weight:400;font-size:11px">.gb · .gbc · .gba</span>'}</div>
+      <div class="grid"></div></div>` + M.html;
+  if(keepFrame){ document.getElementById('scr').insertBefore(keepFrame, document.querySelector('#scr .grid'));
+    document.getElementById('idle').style.display='none'; }
+  setLed(started);
+  bindInputs(); fit();
+  document.getElementById('helpDot').onclick = ()=>document.getElementById('help').classList.add('open');
+}
+function fit(){
+  const M = MODELS[cur]; if(!M) return;
+  const vw = innerWidth, vh = innerHeight - 56;   // Platz für Turbo/Menü-Knöpfe oben
+  const s = Math.min(vw/M.w, vh/M.h) * 0.96;       // ganz sichtbar, nicht randlos
+  dev.style.transform = `translate(-50%,-50%) translateY(24px) scale(${s})`;
+  const rot = document.getElementById('rotate');
+  const wrong = (cur==='gba') === (innerHeight>innerWidth);
+  rot.style.display = wrong ? 'flex':'none';
+  rot.style.display = 'none';   // Gerät passt sich immer an; Hinweis nur dezent im Toast
+  if(wrong && !fit._warned){ fit._warned=true; toast(cur==='gba'?'Tipp: Handy quer halten':'Tipp: Handy hochkant halten'); }
+  if(!wrong) fit._warned=false;
+}
+addEventListener('resize', fit); addEventListener('orientationchange', ()=>setTimeout(fit,200));
+
+function setLed(on){ const l=dev.querySelector('.led'); if(l) l.classList.toggle('on',!!on); }
+
+/* ================= Emulator-Anbindung ================= */
+const KEY = {b:0,select:2,start:3,up:4,down:5,left:6,right:7,a:8,l:10,r:11};
+const ejs = () => { const f=document.getElementById('emu'); return f && f.contentWindow && f.contentWindow.EJS_emulator; };
+function press(k,down){
+  const e = ejs(); if(e && e.gameManager) e.gameManager.simulateInput(0, KEY[k], down?1:0);
+  dev.querySelectorAll(`[data-k="${k}"]:not(.tz)`).forEach(el=>el.classList.toggle('p',down));
+  if(down) haptic();
+}
+const hapLbl = document.getElementById('hap');
+function haptic(){
+  if(!S.haptic) return;
+  if(navigator.vibrate) navigator.vibrate(12); else hapLbl.click();
+}
+
+/* ================= Touch-Eingabe (Multitouch) ================= */
+const held = new Map(); // touchId -> Set von Tasten
+function keysAt(x,y){
+  const el = document.elementFromPoint(x,y);
+  if(!el || !el.classList.contains('tz')) return [];
+  if(el.hasAttribute('data-dpad')){
+    const r = el.getBoundingClientRect(), dx = x-(r.left+r.width/2), dy = y-(r.top+r.height/2);
+    const dead = r.width*0.12, out=[];
+    if(Math.abs(dy) > dead && Math.abs(dy) > Math.abs(dx)*0.45) out.push(dy<0?'up':'down');
+    if(Math.abs(dx) > dead && Math.abs(dx) > Math.abs(dy)*0.45) out.push(dx<0?'left':'right');
+    return out;
+  }
+  return [el.dataset.k];
+}
+function refresh(){
+  const want = new Set(); held.forEach(s=>s.forEach(k=>want.add(k)));
+  for(const k of Object.keys(KEY)){
+    const isDown = pressed.has(k);
+    if(want.has(k) && !isDown){ pressed.add(k); press(k,true); }
+    if(!want.has(k) && isDown){ pressed.delete(k); press(k,false); }
+  }
+  const dp = dev.querySelector('.dpad');
+  if(dp) dp.className = 'dpad ' + ['up','down','left','right'].filter(k=>pressed.has(k)).map(k=>k[0]).join(' ');
+}
+const pressed = new Set();
+function onTouch(e){
+  if(e.target.closest('#menu,#menuBtn,#turboBtn,#help,.screw')) return;
+  e.preventDefault(); resumeAudio();
+  for(const t of e.changedTouches){
+    if(e.type==='touchend'||e.type==='touchcancel') held.delete(t.identifier);
+    else held.set(t.identifier, new Set(keysAt(t.clientX,t.clientY)));
+  }
+  refresh();
+}
+function bindInputs(){ held.clear(); pressed.clear(); }
+['touchstart','touchmove','touchend','touchcancel'].forEach(ev=>document.addEventListener(ev,onTouch,{passive:false}));
+// Tastatur zum Testen am Mac
+const KB = {ArrowUp:'up',ArrowDown:'down',ArrowLeft:'left',ArrowRight:'right',x:'a',y:'b',z:'b',Enter:'start',Shift:'select',a:'l',s:'r'};
+addEventListener('keydown',e=>{const k=KB[e.key]; if(k&&!pressed.has(k)){pressed.add(k);press(k,true);}});
+addEventListener('keyup',e=>{const k=KB[e.key]; if(k){pressed.delete(k);press(k,false);}});
+
+function resumeAudio(){
+  try{ const e=ejs(); const c=e&&e.Module&&e.Module.AL&&e.Module.AL.currentCtx; if(c&&c.audioCtx) c.audioCtx.resume(); }catch(_){}
+}
+
+/* ================= ROM laden ================= */
+document.getElementById('romInput').addEventListener('change', ev => {
+  const f = ev.target.files[0]; ev.target.value=''; if(f) loadRom(f);
+});
+document.getElementById('demoBtn').onclick = async ()=>{
+  try{ const r=await fetch('demo.gb'); loadRom(new File([await r.blob()],'PocketBoy-Demo.gb')); }
+  catch(_){ toast('Demo nicht gefunden'); }
+};
+document.getElementById('closeHelp').onclick=()=>document.getElementById('help').classList.remove('open');
+document.getElementById('help').addEventListener('click',e=>{ if(e.target.id==='help') e.target.classList.remove('open'); });
+async function loadRom(f){
+  await autoSave();
+  rom = { file:f, name:f.name };
+  const ext = f.name.toLowerCase().split('.').pop();
+  rom.coreOpts = {
+    'mgba_gb_model': ext==='gba'?'Autodetect': (currentModel()==='dmg'?'Game Boy':'Autodetect'),
+    'mgba_gb_colors': 'DMG Green',
+    'mgba_interframe_blending': S.ghost ? 'mix' : 'OFF',
+    'mgba_skip_bios': 'ON'
+  };
+  window.__rom = rom; started = false;
+  const old = document.getElementById('emu'); if(old) old.remove();
+  closeMenu(); build();
+  const fr = document.createElement('iframe'); fr.id='emu'; fr.src='emu.html?'+Date.now();
+  fr.setAttribute('allow','autoplay; gamepad');
+  document.getElementById('scr').insertBefore(fr, document.querySelector('#scr .grid'));
+}
+addEventListener('message', async e => {
+  if(e.data && e.data.t==='started'){
+    started = true; setLed(true); document.getElementById('idle').style.display='none';
+    if(S.sound) bootSound();
+    const st = await get('auto:'+rom.name);
+    if(st){ setTimeout(()=>{ try{ ejs().gameManager.loadState(st); toast('Weitergespielt, wo du aufgehört hast'); }catch(_){} }, 600); }
+  }
+});
+
+/* ================= Speicherstände ================= */
+async function autoSave(){
+  const e = ejs(); if(!started || !e || !rom) return;
+  try{ await put('auto:'+rom.name, e.gameManager.getState()); }catch(_){}
+}
+document.addEventListener('visibilitychange', ()=>{ if(document.hidden) autoSave(); });
+addEventListener('pagehide', autoSave);
+setInterval(autoSave, 30000);
+document.getElementById('saveBtn').onclick = async ()=>{
+  const e=ejs(); if(!started) return toast('Kein Spiel geladen');
+  await put('slot:'+rom.name, e.gameManager.getState()); toast('Gespeichert'); closeMenu();
+};
+document.getElementById('loadBtn').onclick = async ()=>{
+  if(!started) return toast('Kein Spiel geladen');
+  const st = await get('slot:'+rom.name); if(!st) return toast('Kein Speicherstand');
+  ejs().gameManager.loadState(st); toast('Geladen'); closeMenu();
+};
+
+/* ================= Turbo ================= */
+let turbo=false;
+document.getElementById('turboBtn').onclick = ()=>{
+  const e=ejs(); if(!started) return;
+  turbo=!turbo; try{ e.gameManager.toggleFastForward(turbo?1:0); }catch(_){}
+  document.getElementById('turboBtn').classList.toggle('on',turbo); haptic();
+};
+
+/* ================= Start-Sound (eigener synthetischer „Pling“) ================= */
+function bootSound(){
+  try{
+    const c = new (window.AudioContext||window.webkitAudioContext)();
+    [[1046,0],[2093,.09]].forEach(([f,t])=>{
+      const o=c.createOscillator(), g=c.createGain(); o.type='square'; o.frequency.value=f;
+      g.gain.setValueAtTime(.0001,c.currentTime+t); g.gain.exponentialRampToValueAtTime(.12,c.currentTime+t+.01);
+      g.gain.exponentialRampToValueAtTime(.0001,c.currentTime+t+(t?0.9:0.08));
+      o.connect(g).connect(c.destination); o.start(c.currentTime+t); o.stop(c.currentTime+t+1);
+    });
+  }catch(_){}
+}
+
+/* ================= Menü ================= */
+const menu=document.getElementById('menu');
+function openMenu(){ menu.classList.add('open'); syncMenu(); }
+function closeMenu(){ menu.classList.remove('open'); }
+document.getElementById('menuBtn').onclick=openMenu;
+document.getElementById('closeMenu').onclick=closeMenu;
+menu.addEventListener('click',e=>{ if(e.target===menu) closeMenu(); });
+function syncMenu(){
+  document.querySelectorAll('#models button').forEach(b=>b.classList.toggle('sel',b.dataset.m===S.model));
+  [['gridBtn','grid'],['ghostBtn','ghost'],['hapBtn','haptic'],['sndBtn','sound']]
+    .forEach(([id,k])=>document.getElementById(id).classList.toggle('sel',S[k]));
+}
+document.querySelectorAll('#models button').forEach(b=>b.onclick=()=>{ S.model=b.dataset.m; saveSet(); syncMenu(); build(); });
+[['gridBtn','grid'],['ghostBtn','ghost'],['hapBtn','haptic'],['sndBtn','sound']].forEach(([id,k])=>
+  document.getElementById(id).onclick=()=>{ S[k]=!S[k]; saveSet(); syncMenu(); build();
+    if(k==='ghost'&&started) toast('Gilt ab dem nächsten Spielstart'); if(k==='haptic') haptic(); });
+
+function toast(t){ const el=document.getElementById('toast'); el.textContent=t; el.classList.add('show');
+  clearTimeout(toast._t); toast._t=setTimeout(()=>el.classList.remove('show'),1800); }
+
+build();
+</script>
+</body></html>

@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="de"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+html,body{margin:0;height:100%;background:#000;overflow:hidden}
+#game{width:100%;height:100%}
+/* EmulatorJS-eigene Oberfläche ausblenden – Steuerung kommt vom Gehäuse */
+.ejs_virtualGamepad_parent,.ejs_menu_bar,.ejs_context_menu,.ejs_start_button,
+.ejs_message,.ejs_popup_container{display:none!important}
+canvas{image-rendering:pixelated;image-rendering:crisp-edges}
+</style></head>
+<body><div id="game"></div>
+<script>
+(async () => {
+  const P = parent;
+  const buf = await P.__rom.file.arrayBuffer();
+  const file = new File([buf], P.__rom.name);           // im iframe neu erzeugen
+  window.EJS_player = '#game';
+  window.EJS_core = 'mgba';                              // spielt .gb, .gbc und .gba
+  window.EJS_gameUrl = file;
+  window.EJS_gameName = P.__rom.name.replace(/\.[^.]+$/, '');
+  window.EJS_pathtodata = 'https://cdn.emulatorjs.org/stable/data/';
+  window.EJS_startOnLoaded = true;
+  window.EJS_backgroundColor = '#000';
+  window.EJS_defaultOptions = P.__rom.coreOpts || {};
+  window.EJS_onGameStart = () => P.postMessage({ t: 'started' }, '*');
+  const s = document.createElement('script');
+  s.src = window.EJS_pathtodata + 'loader.js';
+  document.body.appendChild(s);
+})();
+</script>
+</body></html>

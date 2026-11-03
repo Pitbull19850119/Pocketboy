@@ -184,7 +184,7 @@ html,body{background:#000!important;overflow:hidden;overscroll-behavior:none;hei
   <h3>Speicherstand</h3>
   <div class="row"><button id="saveBtn">💾 Speichern</button><button id="loadBtn">📥 Laden</button></div>
   <h3>Bild & Gefühl</h3>
-  <div class="row"><button id="gridBtn">Pixelraster</button><button id="ghostBtn">Nachzieh-Effekt</button><button id="hapBtn">Vibration</button><button id="sndBtn">Start-Sound</button><button id="ncBtn">Cover aus Internet</button></div>
+  <div class="row"><button id="gridBtn">Pixelraster</button><button id="ghostBtn">Nachzieh-Effekt</button><button id="hapBtn">Vibration</button><button id="hapTest">Vibration testen</button><button id="sndBtn">Start-Sound</button><button id="ncBtn">Cover aus Internet</button></div>
   <p class="note">Vollbild: in Safari auf Teilen → „Zum Home-Bildschirm“, dann über das Symbol starten.<br>
   Der Spielstand wird automatisch gesichert, wenn du die App verlässt, und beim nächsten Start dieses Spiels fortgesetzt.</p>
   <div class="row"><button id="closeMenu">Schließen</button></div>
@@ -200,7 +200,7 @@ html,body{background:#000!important;overflow:hidden;overscroll-behavior:none;hei
   <div id="libList"></div>
 </div>
 <div id="help"><div class="sheet">
-  <h2>So funktioniert PocketBoy <span style="font-size:11px;color:#777">v26</span></h2>
+  <h2>So funktioniert PocketBoy <span style="font-size:11px;color:#777">v27</span></h2>
   <h4>Spiel starten</h4>
   <ul><li><b>MENÜ → 🎮 Demo</b> startet ein kleines eingebautes Testspiel: Ball mit dem Steuerkreuz bewegen, <b>A</b> tauscht die Farben.</li>
   <li><b>MENÜ → 📚 Bibliothek</b> zeigt alle Spiele, die du schon geladen hast, sortiert nach Konsole. Mit Suche, Filter und Sortierung. Cover werden aus der öffentlichen libretro-Cover-Datenbank geladen, wenn der Dateiname dem üblichen Schema entspricht (z. B. „Super Mario Land (World).gb“). Sonst wird nach ein paar Sekunden Spielzeit ein Bild aus dem Spiel zum Cover. Abschaltbar unter MENÜ → Cover aus Internet. „Bearbeiten“ zum Löschen.</li>
@@ -237,7 +237,7 @@ html,body{background:#000!important;overflow:hidden;overscroll-behavior:none;hei
 function pblog(m){ try{ const l=JSON.parse(localStorage.getItem('pb_log')||'[]'); const d=new Date();
   l.push(d.toTimeString().slice(0,8)+' '+m); while(l.length>60) l.shift(); localStorage.setItem('pb_log',JSON.stringify(l)); }catch(_){} }
 addEventListener('error', e => pblog('FEHLER '+e.message));
-(()=>{ const n=performance.getEntriesByType('navigation')[0]; pblog('--- Seite geöffnet ('+(n?n.type:'?')+') v26 '+innerWidth+'x'+innerHeight+' screen '+screen.width+'x'+screen.height+(matchMedia('(display-mode: standalone)').matches?' standalone':'')+(navigator.standalone?' App':' Safari')); })();
+(()=>{ const n=performance.getEntriesByType('navigation')[0]; pblog('--- Seite geöffnet ('+(n?n.type:'?')+') v27 '+innerWidth+'x'+innerHeight+' screen '+screen.width+'x'+screen.height+(matchMedia('(display-mode: standalone)').matches?' standalone':'')+(navigator.standalone?' App':' Safari')); })();
 /* ================= Zurück-Wischgeste von Safari abfangen =================
    Ein Wischen vom linken Rand (z. B. am Steuerkreuz) würde sonst die Seite verlassen. */
 try{ history.replaceState({pb:0},''); history.pushState({pb:1},''); }catch(_){}
@@ -413,10 +413,18 @@ function press(k,down){
 }
 const hapLbl = document.getElementById('hap');
 let presses=0;
+// iOS 18+: Klick auf ein frisches <input switch>-Label löst ein kurzes Taptic-Klicken aus (wie ios-haptics)
+function iosTap(){
+  try{
+    const label = document.createElement('label'); label.ariaHidden = 'true'; label.style.display = 'none';
+    const input = document.createElement('input'); input.type = 'checkbox'; input.setAttribute('switch','');
+    label.appendChild(input); document.head.appendChild(label); label.click(); document.head.removeChild(label);
+  }catch(_){}
+}
 function haptic(){
   presses++;
   if(!S.haptic) return;
-  if(navigator.vibrate) navigator.vibrate(12); else hapLbl.click();
+  if(navigator.vibrate) navigator.vibrate(10); else iosTap();
 }
 
 /* ================= Touch-Eingabe (Multitouch) ================= */
@@ -631,6 +639,7 @@ async function importFiles(list){
   document.getElementById('lib').classList.add('open'); libRender();
 }
 ['dirInput','multiInput'].forEach(id=>document.getElementById(id).addEventListener('change', e=>{ const l=e.target.files; if(l&&l.length) importFiles(l); e.target.value=''; }));
+document.getElementById('hapTest').onclick = ()=>{ iosTap(); setTimeout(iosTap,180); setTimeout(iosTap,360); };
 document.getElementById('closeHelp').onclick=()=>document.getElementById('help').classList.remove('open');
 document.getElementById('help').addEventListener('click',e=>{ if(e.target.id==='help') e.target.classList.remove('open'); });
 /* ROM-Typ am Inhalt erkennen (nicht an der Endung) */

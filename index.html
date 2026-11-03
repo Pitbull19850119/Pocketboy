@@ -29,8 +29,9 @@ html,body{background:#000!important;overflow:hidden;overscroll-behavior:none;hei
     radial-gradient(90% 60% at 90% 100%,rgba(0,0,0,.22),transparent 60%),
     linear-gradient(180deg,var(--b1),var(--b2) 45%,var(--b3));
   box-shadow:inset 0 2px 1px rgba(255,255,255,.55),inset 0 -6px 14px rgba(0,0,0,.28),inset 6px 0 10px rgba(255,255,255,.12),inset -8px 0 14px rgba(0,0,0,.18)}
-.dmg .shell{border-radius:0 0 var(--curve) 0}
-.gba .shell{border-radius:0}
+.dmg .shell{border-radius:10px 10px var(--curve) 10px}
+.gbc .shell{border-radius:10px 10px 28px 28px}
+.gba .shell{border-radius:18px}
 .seam{position:absolute;left:0;right:0;height:2px;background:rgba(0,0,0,.18);box-shadow:0 1px 0 rgba(255,255,255,.35)}
 .bezel{position:absolute;background:linear-gradient(160deg,var(--bez),var(--bezD));
   box-shadow:inset 0 2px 3px rgba(0,0,0,.6),inset 0 -1px 0 rgba(255,255,255,.12),0 1px 0 rgba(255,255,255,.45)}
@@ -149,7 +150,7 @@ html,body{background:#000!important;overflow:hidden;overscroll-behavior:none;hei
 </div></div>
 
 <div id="help"><div class="sheet">
-  <h2>So funktioniert PocketBoy <span style="font-size:11px;color:#777">v13</span></h2>
+  <h2>So funktioniert PocketBoy <span style="font-size:11px;color:#777">v14</span></h2>
   <h4>Spiel starten</h4>
   <ul><li><b>MENÜ → 🎮 Demo</b> startet ein kleines eingebautes Testspiel: Ball mit dem Steuerkreuz bewegen, <b>A</b> tauscht die Farben.</li>
   <li><b>MENÜ → 📂 ROM laden</b> öffnet die Dateien-App. Erlaubt sind <b>.gb</b>, <b>.gbc</b>, <b>.gba</b> (auch als .zip).</li>
@@ -183,7 +184,7 @@ html,body{background:#000!important;overflow:hidden;overscroll-behavior:none;hei
 function pblog(m){ try{ const l=JSON.parse(localStorage.getItem('pb_log')||'[]'); const d=new Date();
   l.push(d.toTimeString().slice(0,8)+' '+m); while(l.length>60) l.shift(); localStorage.setItem('pb_log',JSON.stringify(l)); }catch(_){} }
 addEventListener('error', e => pblog('FEHLER '+e.message));
-(()=>{ const n=performance.getEntriesByType('navigation')[0]; pblog('--- Seite geöffnet ('+(n?n.type:'?')+') v13 '+innerWidth+'x'+innerHeight+' screen '+screen.width+'x'+screen.height+(matchMedia('(display-mode: standalone)').matches?' standalone':'')+(navigator.standalone?' App':' Safari')); })();
+(()=>{ const n=performance.getEntriesByType('navigation')[0]; pblog('--- Seite geöffnet ('+(n?n.type:'?')+') v14 '+innerWidth+'x'+innerHeight+' screen '+screen.width+'x'+screen.height+(matchMedia('(display-mode: standalone)').matches?' standalone':'')+(navigator.standalone?' App':' Safari')); })();
 /* ================= Zurück-Wischgeste von Safari abfangen =================
    Ein Wischen vom linken Rand (z. B. am Steuerkreuz) würde sonst die Seite verlassen. */
 try{ history.replaceState({pb:0},''); history.pushState({pb:1},''); }catch(_){}
@@ -309,13 +310,18 @@ function build(){
     VH = p ? Math.max(screen.width,screen.height) : Math.min(screen.width,screen.height); }
   const land = VW > VH, wantLand = m==='gba';
   rot = land===wantLand ? 0 : (wantLand ? 90 : -90);
-  const W = rot ? VH : VW, H = rot ? VW : VH;
-  const ins = rot ? {t:10,r:10,b:10,l:10} : insets();
+  // Schwarze Balken für Statusleiste/Notch und Home-Balken; das Gehäuse liegt dazwischen
+  const si = insets(), portraitView = VH >= VW;
+  const bar = { t: Math.max(si.t, portraitView ? 54 : 0), b: Math.max(si.b, portraitView ? 30 : 16),
+                l: Math.max(si.l, portraitView ? 0 : 48), r: Math.max(si.r, portraitView ? 0 : 48) };
+  const AW = VW - bar.l - bar.r, AH = VH - bar.t - bar.b;
+  const W = rot ? AH : AW, H = rot ? AW : AH;
+  const ins = {t:4,r:8,b:6,l:8};
   const L = wantLand ? landscape(W,H,ins) : portrait(W,H,ins,m);
   dev.className = 'dev ' + m + (S.grid?' grid-on':'');
   dev.style.cssText = rot
-    ? `position:fixed;left:50%;top:50%;width:${W}px;height:${H}px;transform:translate(-50%,-50%) rotate(${rot}deg);--curve:${R(W*0.2)}px`
-    : `position:fixed;left:0;top:0;width:${W}px;height:${H}px;--curve:${R(W*0.2)}px`;   // oben links verankert
+    ? `position:fixed;left:${bar.l+AW/2}px;top:${bar.t+AH/2}px;width:${W}px;height:${H}px;transform:translate(-50%,-50%) rotate(${rot}deg);--curve:${R(W*0.2)}px`
+    : `position:fixed;left:${bar.l}px;top:${bar.t}px;width:${W}px;height:${H}px;--curve:${R(W*0.2)}px`;
   const b = L.scr;
   // Das Display (mit dem Emulator-iframe) bleibt dauerhaft im DOM – sonst lädt Safari das Spiel neu.
   let skin = document.getElementById('skin'), scr = document.getElementById('scr');

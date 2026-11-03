@@ -149,7 +149,7 @@ html,body{margin:0;height:100%;overflow:hidden;background:#111;touch-action:none
 </div></div>
 
 <div id="help"><div class="sheet">
-  <h2>So funktioniert PocketBoy <span style="font-size:11px;color:#777">v6</span></h2>
+  <h2>So funktioniert PocketBoy <span style="font-size:11px;color:#777">v7</span></h2>
   <h4>Spiel starten</h4>
   <ul><li><b>MENÜ → 🎮 Demo</b> startet ein kleines eingebautes Testspiel: Ball mit dem Steuerkreuz bewegen, <b>A</b> tauscht die Farben.</li>
   <li><b>MENÜ → 📂 ROM laden</b> öffnet die Dateien-App. Erlaubt sind <b>.gb</b>, <b>.gbc</b>, <b>.gba</b> (auch als .zip).</li>
@@ -450,6 +450,7 @@ async function loadRom(f, resume){
     'gambatte_gb_hwmode': currentModel()==='dmg' ? 'GB' : 'Auto'
   };
   window.__rom = rom; started = false;
+  try{ localStorage.setItem('pb_boot', String(Date.now())); }catch(_){}
   const old = document.getElementById('emu'); if(old) old.remove();
   closeMenu(); build();
   const fr = document.createElement('iframe'); fr.id='emu'; fr.src='emu.html?'+Date.now();
@@ -460,9 +461,11 @@ async function loadRom(f, resume){
 addEventListener('message', async e => {
   if(e.data && e.data.t==='kind' && rom && rom.kind!==e.data.kind){ rom.kind=e.data.kind; S.model='auto'; build(); }
   if(e.data && e.data.t==='started'){
+    setTimeout(()=>{ try{localStorage.removeItem('pb_boot')}catch(_){} }, 20000);  // 20 s stabil = kein Absturz
     started = true; setLed(true); document.getElementById('idle').style.display='none';
     if(S.sound) bootSound();
-    const st = await get('auto:'+rom.name);
+    const st = window.__skipState ? null : await get('auto2:'+rom.core+':'+rom.name);
+    window.__skipState = false;
     if(st){ setTimeout(()=>{ try{ ejs().gameManager.loadState(st); toast('Weitergespielt, wo du aufgehört hast'); }catch(_){} }, 600); }
   }
 });
@@ -470,18 +473,18 @@ addEventListener('message', async e => {
 /* ================= Speicherstände ================= */
 async function autoSave(){
   const e = ejs(); if(!started || !e || !rom) return;
-  try{ await put('auto:'+rom.name, e.gameManager.getState()); }catch(_){}
+  try{ await put('auto2:'+rom.core+':'+rom.name, e.gameManager.getState()); }catch(_){}
 }
 document.addEventListener('visibilitychange', ()=>{ if(document.hidden) autoSave(); });
 addEventListener('pagehide', autoSave);
 setInterval(autoSave, 30000);
 document.getElementById('saveBtn').onclick = async ()=>{
   const e=ejs(); if(!started) return toast('Kein Spiel geladen');
-  await put('slot:'+rom.name, e.gameManager.getState()); toast('Gespeichert'); closeMenu();
+  await put('slot2:'+rom.core+':'+rom.name, e.gameManager.getState()); toast('Gespeichert'); closeMenu();
 };
 document.getElementById('loadBtn').onclick = async ()=>{
   if(!started) return toast('Kein Spiel geladen');
-  const st = await get('slot:'+rom.name); if(!st) return toast('Kein Speicherstand');
+  const st = await get('slot2:'+rom.core+':'+rom.name); if(!st) return toast('Kein Speicherstand');
   ejs().gameManager.loadState(st); toast('Geladen'); closeMenu();
 };
 
@@ -527,6 +530,16 @@ function toast(t){ const el=document.getElementById('toast'); el.textContent=t; 
 
 build();
 // Nach einem Neustart durch iOS das letzte Spiel automatisch fortsetzen
-get('lastrom').then(r=>{ if(r && r.buf && !rom){ loadRom(new File([r.buf], r.name), true); } }).catch(()=>{});
+(()=>{
+  let crashed = false; try{ crashed = !!localStorage.getItem('pb_boot'); localStorage.removeItem('pb_boot'); }catch(_){}
+  if(crashed){
+    // Letzter Start ist abgestürzt: nichts automatisch laden, Spielstand dieses Spiels verwerfen
+    get('lastrom').then(r=>{ if(r){ ['gambatte','mgba'].forEach(c=>idb('readwrite',st=>st.delete('auto2:'+c+':'+r.name))); } });
+    idb('readwrite',st=>st.delete('lastrom'));
+    setTimeout(()=>toast('Letzter Start ist abgestürzt – bitte Spiel neu laden'), 500);
+    return;
+  }
+  get('lastrom').then(r=>{ if(r && r.buf && !rom){ loadRom(new File([r.buf], r.name), true); } }).catch(()=>{});
+})();
 </script>
 </body></html>

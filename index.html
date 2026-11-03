@@ -132,7 +132,7 @@ html,body{background:#000!important;overflow:hidden;overscroll-behavior:none;hei
 
 <div id="menu"><div class="sheet">
   <h3>Spiel</h3>
-  <div class="row"><button id="demoBtn">🎮 Demo</button><label class="filebtn">📂 ROM laden<input id="romInput" type="file" accept=".gb,.gbc,.gba,.zip"></label></div>
+  <div class="row"><button id="demoBtn">🎮 Demo</button><button id="urlBtn">🌐 Link</button><label class="filebtn">📂 ROM laden<input id="romInput" type="file" accept=".gb,.gbc,.gba,.zip"></label></div>
   <h3>Gerät</h3>
   <div class="row" id="models">
     <button data-m="auto">Automatisch</button>
@@ -150,9 +150,10 @@ html,body{background:#000!important;overflow:hidden;overscroll-behavior:none;hei
 </div></div>
 
 <div id="help"><div class="sheet">
-  <h2>So funktioniert PocketBoy <span style="font-size:11px;color:#777">v19</span></h2>
+  <h2>So funktioniert PocketBoy <span style="font-size:11px;color:#777">v20</span></h2>
   <h4>Spiel starten</h4>
   <ul><li><b>MENÜ → 🎮 Demo</b> startet ein kleines eingebautes Testspiel: Ball mit dem Steuerkreuz bewegen, <b>A</b> tauscht die Farben.</li>
+  <li><b>MENÜ → 🌐 Link</b> lädt ein Spiel direkt aus dem Internet. Nötig ist ein direkter Datei-Link (endet auf .gb/.gbc/.gba/.zip), und der Server muss den Zugriff erlauben. Sonst die Datei herunterladen und über ROM laden öffnen.</li>
   <li><b>MENÜ → 📂 ROM laden</b> öffnet die Dateien-App. Erlaubt sind <b>.gb</b>, <b>.gbc</b>, <b>.gba</b> (auch als .zip).</li>
   <li>Unter <b>Gerät → Automatisch</b> wird das Gehäuse passend zur Dateiendung gewählt. Du kannst es aber auch fix einstellen.</li></ul>
   <h4>Vollbild wie eine echte Konsole</h4>
@@ -184,7 +185,7 @@ html,body{background:#000!important;overflow:hidden;overscroll-behavior:none;hei
 function pblog(m){ try{ const l=JSON.parse(localStorage.getItem('pb_log')||'[]'); const d=new Date();
   l.push(d.toTimeString().slice(0,8)+' '+m); while(l.length>60) l.shift(); localStorage.setItem('pb_log',JSON.stringify(l)); }catch(_){} }
 addEventListener('error', e => pblog('FEHLER '+e.message));
-(()=>{ const n=performance.getEntriesByType('navigation')[0]; pblog('--- Seite geöffnet ('+(n?n.type:'?')+') v19 '+innerWidth+'x'+innerHeight+' screen '+screen.width+'x'+screen.height+(matchMedia('(display-mode: standalone)').matches?' standalone':'')+(navigator.standalone?' App':' Safari')); })();
+(()=>{ const n=performance.getEntriesByType('navigation')[0]; pblog('--- Seite geöffnet ('+(n?n.type:'?')+') v20 '+innerWidth+'x'+innerHeight+' screen '+screen.width+'x'+screen.height+(matchMedia('(display-mode: standalone)').matches?' standalone':'')+(navigator.standalone?' App':' Safari')); })();
 /* ================= Zurück-Wischgeste von Safari abfangen =================
    Ein Wischen vom linken Rand (z. B. am Steuerkreuz) würde sonst die Seite verlassen. */
 try{ history.replaceState({pb:0},''); history.pushState({pb:1},''); }catch(_){}
@@ -426,6 +427,26 @@ function showLog(){ try{ document.getElementById('logBox').textContent = JSON.pa
 document.getElementById('copyLog').onclick = async ()=>{ showLog(); try{ await navigator.clipboard.writeText(document.getElementById('logBox').textContent); toast('Kopiert'); }catch(_){ toast('Text markieren und kopieren'); } };
 document.getElementById('clearLog').onclick = ()=>{ try{localStorage.removeItem('pb_log')}catch(_){} showLog(); };
 new MutationObserver(()=>{ if(document.getElementById('help').classList.contains('open')) showLog(); }).observe(document.getElementById('help'),{attributes:true});
+document.getElementById('urlBtn').onclick = async ()=>{
+  const url = (prompt('Direkter Link zu einer .gb / .gbc / .gba / .zip-Datei:', localStorage.getItem('pb_lasturl')||'https://')||'').trim();
+  if(!/^https?:\/\/.+/i.test(url)) return;
+  try{ localStorage.setItem('pb_lasturl', url); }catch(_){}
+  toast('Lade …'); pblog('Link '+url.slice(0,80));
+  try{
+    const r = await fetch(url, {mode:'cors'});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const ct = r.headers.get('content-type')||'';
+    if(ct.includes('text/html')) throw new Error('Das ist eine Webseite, kein direkter Datei-Link');
+    const blob = await r.blob();
+    let name = decodeURIComponent(url.split('?')[0].split('/').pop()||'spiel');
+    loadRom(new File([blob], name));
+  }catch(e){
+    pblog('Link-Fehler '+e.message);
+    toast(/Failed to fetch|Load failed|NetworkError/i.test(e.message)
+      ? 'Server erlaubt keinen Direktzugriff – Datei herunterladen und über ROM laden öffnen'
+      : e.message);
+  }
+};
 document.getElementById('closeHelp').onclick=()=>document.getElementById('help').classList.remove('open');
 document.getElementById('help').addEventListener('click',e=>{ if(e.target.id==='help') e.target.classList.remove('open'); });
 /* ROM-Typ am Inhalt erkennen (nicht an der Endung) */

@@ -47,6 +47,8 @@ function romKind(buf,name){
   if(u.length>0x143 && (u[0x143]&0x80)) return 'gbc';                     // Color-Flag im GB-Header
   return 'dmg';
 }
+// alte, gespeicherte EmulatorJS-Einstellungen entfernen (könnten Rewind wieder einschalten)
+try{ Object.keys(localStorage).filter(k=>/^ejs/i.test(k)).forEach(k=>localStorage.removeItem(k)); }catch(_){}
 (async () => {
   const P = parent;
   let buf = await P.__rom.file.arrayBuffer(), name = P.__rom.name;
@@ -72,7 +74,14 @@ function romKind(buf,name){
     : Object.assign({'gambatte_gb_colorization':'internal','gambatte_gb_internal_palette':'GB - DMG','gambatte_mix_frames':'mix'},
         (P.__rom.coreOpts && !P.__rom.coreOpts.mgba_skip_bios) ? P.__rom.coreOpts : {});
   Object.assign(window.EJS_defaultOptions, window.EJS_defaultOptions_extra);
-  window.EJS_onGameStart = () => { pl('Spiel gestartet'); P.postMessage({ t: 'started' }, '*'); };
+  window.EJS_onGameStart = () => { pl('Spiel gestartet');
+    try{ const E=window.EJS_emulator;
+      ['rewindEnabled'].forEach(k=>{ try{ E.changeSettingOption(k,'disabled'); }catch(_){} });
+      try{ E.gameManager.setRewindEnabled && E.gameManager.setRewindEnabled(false); }catch(_){}
+      try{ E.gameManager.setVariable && E.gameManager.setVariable('rewind_enable','false'); }catch(_){}
+      try{ E.gameManager.functions && E.gameManager.functions.toggleRewind && E.gameManager.functions.toggleRewind(0); }catch(_){}
+      pl('Rewind aus');
+    }catch(e){ pl('Rewind-Fehler '+e.message); } P.postMessage({ t: 'started' }, '*'); };
   window.EJS_ready = () => pl('Kern bereit ('+window.EJS_core+')');
   const s = document.createElement('script');
   s.src = window.EJS_pathtodata + 'loader.js';

@@ -13,7 +13,8 @@
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 html,body{margin:0;height:100%;overflow:hidden;background:#111;touch-action:none;font-family:-apple-system,system-ui,sans-serif}
-#stage{position:fixed;inset:0;overflow:hidden;background:#000;height:100vh;height:100lvh}
+#stage{position:fixed;left:0;top:0;width:100%;height:100%;overflow:hidden;background:transparent}
+html,body{min-height:100%;transition:background .2s}
 #probe{position:fixed;visibility:hidden;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
 .dev{position:absolute;transform-origin:center;left:50%;top:50%}
 
@@ -149,7 +150,7 @@ html,body{margin:0;height:100%;overflow:hidden;background:#111;touch-action:none
 </div></div>
 
 <div id="help"><div class="sheet">
-  <h2>So funktioniert PocketBoy <span style="font-size:11px;color:#777">v7</span></h2>
+  <h2>So funktioniert PocketBoy <span style="font-size:11px;color:#777">v8</span></h2>
   <h4>Spiel starten</h4>
   <ul><li><b>MENÜ → 🎮 Demo</b> startet ein kleines eingebautes Testspiel: Ball mit dem Steuerkreuz bewegen, <b>A</b> tauscht die Farben.</li>
   <li><b>MENÜ → 📂 ROM laden</b> öffnet die Dateien-App. Erlaubt sind <b>.gb</b>, <b>.gbc</b>, <b>.gba</b> (auch als .zip).</li>
@@ -288,15 +289,17 @@ function currentModel(){
 }
 function build(){
   const m = currentModel(); cur = m;
-  let VW = innerWidth, VH = Math.max(innerHeight, document.documentElement.clientHeight);
-  if(navigator.standalone){ const p = VH >= VW; VW = p ? Math.min(screen.width,screen.height) : Math.max(screen.width,screen.height);
-    VH = p ? Math.max(screen.width,screen.height) : Math.min(screen.width,screen.height); }
+  const stg = document.getElementById('stage');
+  let VW = stg.clientWidth || innerWidth, VH = stg.clientHeight || innerHeight;   // echte, sichtbare Fläche
   const land = VW > VH, wantLand = m==='gba';
   rot = land===wantLand ? 0 : (wantLand ? 90 : -90);
   const W = rot ? VH : VW, H = rot ? VW : VH;
   const ins = rot ? {t:10,r:10,b:10,l:10} : insets();
   const L = wantLand ? landscape(W,H,ins) : portrait(W,H,ins,m);
   dev.className = 'dev ' + m + (S.grid?' grid-on':'');
+  const bg = {dmg:'#b3ada1',gbc:'#45237f',gba:'#2c2183'}[m];      // Fläche ausserhalb = Gehäusefarbe
+  document.documentElement.style.background = document.body.style.background = bg;
+  document.querySelector('meta[name=theme-color]')?.setAttribute('content',bg);
   dev.style.cssText = `width:${W}px;height:${H}px;transform:translate(-50%,-50%) rotate(${rot}deg);--curve:${R(W*0.2)}px`;
   const b = L.scr;
   // Das Display (mit dem Emulator-iframe) bleibt dauerhaft im DOM – sonst lädt Safari das Spiel neu.

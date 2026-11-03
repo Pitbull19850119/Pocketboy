@@ -105,7 +105,7 @@ html,body{background:#000!important;overflow:hidden;overscroll-behavior:none;hei
   padding:calc(env(safe-area-inset-top) + 10px) 0 env(safe-area-inset-bottom)}
 #lib.open{display:flex}
 #lib .top{padding:0 14px 8px;display:flex;gap:8px;align-items:center}
-#lib h2{margin:0;font-size:22px;flex:1}
+#lib h2{margin:0;font-size:22px;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #lib .x{border:0;background:#2a2a33;color:#fff;border-radius:16px;height:32px;padding:0 14px;font:600 14px sans-serif}
 #libSearch{margin:0 14px 8px;padding:11px 14px;border-radius:12px;border:0;background:#24242c;color:#fff;font-size:16px;-webkit-user-select:text;user-select:text}
 #libChips{display:flex;gap:6px;padding:0 14px 10px;overflow-x:auto;flex-shrink:0}
@@ -206,20 +206,19 @@ html,body{background:#000!important;overflow:hidden;overscroll-behavior:none;hei
 </div></div>
 
 <div id="lib">
-  <div class="top"><h2>Bibliothek</h2><button class="x" id="libClose">✕</button></div>
+  <div class="top"><h2>Bibliothek</h2><button class="x" id="libClear" style="color:#ff7b7b">🗑 Leeren</button><button class="x" id="libClose">✕</button></div>
   <input id="libSearch" type="search" placeholder="Spiel suchen …" autocomplete="off">
   <div id="libChips">
     <button data-f="all" class="sel">Alle</button><button data-f="dmg">Game Boy</button><button data-f="gbc">Color</button><button data-f="gba">Advance</button><button data-f="fav">★ Favoriten</button>
     <button data-s="recent" class="sel">Zuletzt gespielt</button><button data-s="az">A–Z</button><button data-s="added">Neu hinzugefügt</button>
   </div>
   <div id="libList"></div>
-  <div style="padding:10px 14px 4px;flex-shrink:0"><button class="x" id="libClear" style="width:100%;height:40px;background:#2a1e22;color:#ff7b7b">🗑 Bibliothek leeren</button></div>
 </div>
 <div id="help"><div class="sheet">
-  <h2>So funktioniert PocketBoy <span style="font-size:11px;color:#777">v32</span></h2>
+  <h2>So funktioniert PocketBoy <span style="font-size:11px;color:#777">v33</span></h2>
   <h4>Spiel starten</h4>
   <ul><li><b>MENÜ → 🎮 Demo</b> startet ein kleines eingebautes Testspiel: Ball mit dem Steuerkreuz bewegen, <b>A</b> tauscht die Farben.</li>
-  <li><b>MENÜ → 📚 Bibliothek</b> zeigt alle Spiele, die du schon geladen hast, sortiert nach Konsole. Mit Suche, Filter und Sortierung. Cover werden aus der öffentlichen libretro-Cover-Datenbank geladen, wenn der Dateiname dem üblichen Schema entspricht (z. B. „Super Mario Land (World).gb“). Sonst wird nach ein paar Sekunden Spielzeit ein Bild aus dem Spiel zum Cover. Abschaltbar unter MENÜ → Cover aus Internet. ☆ macht ein Spiel zum Favoriten, − oben rechts entfernt es. „Bibliothek leeren“ ganz unten entfernt alle Spiele (Spielstände bleiben). Ganz oben stehen die 5 zuletzt gespielten Spiele und deine Favoriten.</li>
+  <li><b>MENÜ → 📚 Bibliothek</b> zeigt alle Spiele, die du schon geladen hast, sortiert nach Konsole. Mit Suche, Filter und Sortierung. Cover werden aus der öffentlichen libretro-Cover-Datenbank geladen, wenn der Dateiname dem üblichen Schema entspricht (z. B. „Super Mario Land (World).gb“). Sonst wird nach ein paar Sekunden Spielzeit ein Bild aus dem Spiel zum Cover. Abschaltbar unter MENÜ → Cover aus Internet. ☆ macht ein Spiel zum Favoriten, − oben rechts entfernt es. „🗑 Leeren“ oben entfernt alle Spiele (Spielstände bleiben). Ganz oben stehen die 5 zuletzt gespielten Spiele und deine Favoriten.</li>
   <li><b>MENÜ → 📁 Ordner importieren</b> liest alle Spiele aus einem Ordner inkl. Unterordnern ein (auch ZIPs) und legt sie in die Bibliothek, ohne sie zu starten. Bietet iOS nur die Dateiauswahl an: „…oder mehrere Dateien auswählen“ und oben rechts „Auswählen“ → alle markieren. Bereits vorhandene Spiele werden übersprungen.</li>
   <li><b>MENÜ → 🌐 Link</b> lädt ein Spiel direkt aus dem Internet. Nötig ist ein direkter Datei-Link (endet auf .gb/.gbc/.gba/.zip), und der Server muss den Zugriff erlauben. Sonst die Datei herunterladen und über ROM laden öffnen.</li>
   <li><b>MENÜ → 📂 ROM laden</b> öffnet die Dateien-App. Erlaubt sind <b>.gb</b>, <b>.gbc</b>, <b>.gba</b> (auch als .zip).</li>
@@ -254,7 +253,7 @@ html,body{background:#000!important;overflow:hidden;overscroll-behavior:none;hei
 function pblog(m){ try{ const l=JSON.parse(localStorage.getItem('pb_log')||'[]'); const d=new Date();
   l.push(d.toTimeString().slice(0,8)+' '+m); while(l.length>60) l.shift(); localStorage.setItem('pb_log',JSON.stringify(l)); }catch(_){} }
 addEventListener('error', e => pblog('FEHLER '+e.message));
-(()=>{ const n=performance.getEntriesByType('navigation')[0]; pblog('--- Seite geöffnet ('+(n?n.type:'?')+') v32 '+innerWidth+'x'+innerHeight+' screen '+screen.width+'x'+screen.height+(matchMedia('(display-mode: standalone)').matches?' standalone':'')+(navigator.standalone?' App':' Safari')); })();
+(()=>{ const n=performance.getEntriesByType('navigation')[0]; pblog('--- Seite geöffnet ('+(n?n.type:'?')+') v33 '+innerWidth+'x'+innerHeight+' screen '+screen.width+'x'+screen.height+(matchMedia('(display-mode: standalone)').matches?' standalone':'')+(navigator.standalone?' App':' Safari')); })();
 /* ================= Automatische Updates + dauerhafter Speicher ================= */
 if('serviceWorker' in navigator){
   navigator.serviceWorker.register('sw.js').then(r=>{ r.update(); }).catch(e=>pblog('SW-Fehler '+e.message));
@@ -638,8 +637,8 @@ document.getElementById('libChips').addEventListener('click', e=>{ const b=e.tar
 document.getElementById('libBtn').onclick = ()=>{ closeMenu(); document.getElementById('lib').classList.add('open'); libRender(); };
 document.getElementById('libClear').onclick = async e=>{
   const b = e.target;
-  if(!b.dataset.ask){ b.dataset.ask='1'; b.textContent='Wirklich alle Spiele löschen? Nochmal tippen'; b.style.background='#c33'; b.style.color='#fff';
-    setTimeout(()=>{ delete b.dataset.ask; b.textContent='🗑 Bibliothek leeren'; b.style.background='#2a1e22'; b.style.color='#ff7b7b'; }, 4000); return; }
+  if(!b.dataset.ask){ b.dataset.ask='1'; b.textContent='Wirklich? Tippen'; b.style.background='#c33'; b.style.color='#fff';
+    setTimeout(()=>{ delete b.dataset.ask; b.textContent='🗑 Leeren'; b.style.background=''; b.style.color='#ff7b7b'; }, 4000); return; }
   delete b.dataset.ask; b.textContent='Lösche …';
   const d = await db; let n=0;
   await new Promise(res=>{ const t=d.transaction('s','readwrite'), st=t.objectStore('s'); const c=st.openCursor();
@@ -647,7 +646,7 @@ document.getElementById('libClear').onclick = async e=>{
       if(/^(rom|meta|cover|netcoverurl|nocover|netcover):/.test(k) || k==='lastrom'){ if(k.startsWith('meta:')) n++; r.delete(); } r.continue(); };
     t.oncomplete=res; t.onerror=res; });
   libCache=null; pblog('Bibliothek geleert: '+n+' Spiele'); toast(n+' Spiele entfernt – Spielstände bleiben erhalten');
-  b.textContent='🗑 Bibliothek leeren'; b.style.background='#2a1e22'; b.style.color='#ff7b7b'; libRender();
+  b.textContent='🗑 Leeren'; b.style.background=''; b.style.color='#ff7b7b'; libRender();
 };
 document.getElementById('libClose').onclick = ()=>document.getElementById('lib').classList.remove('open');
 // Cover: Bild aus dem laufenden Spiel übernehmen

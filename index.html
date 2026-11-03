@@ -199,7 +199,7 @@ html,body{background:#000!important;overflow:hidden;overscroll-behavior:none;hei
   <div id="libList"></div>
 </div>
 <div id="help"><div class="sheet">
-  <h2>So funktioniert PocketBoy <span style="font-size:11px;color:#777">v22</span></h2>
+  <h2>So funktioniert PocketBoy <span style="font-size:11px;color:#777">v23</span></h2>
   <h4>Spiel starten</h4>
   <ul><li><b>MENÜ → 🎮 Demo</b> startet ein kleines eingebautes Testspiel: Ball mit dem Steuerkreuz bewegen, <b>A</b> tauscht die Farben.</li>
   <li><b>MENÜ → 📚 Bibliothek</b> zeigt alle Spiele, die du schon geladen hast, sortiert nach Konsole. Mit Suche, Filter und Sortierung. Cover werden aus der öffentlichen libretro-Cover-Datenbank geladen, wenn der Dateiname dem üblichen Schema entspricht (z. B. „Super Mario Land (World).gb“). Sonst wird nach ein paar Sekunden Spielzeit ein Bild aus dem Spiel zum Cover. Abschaltbar unter MENÜ → Cover aus Internet. „Bearbeiten“ zum Löschen.</li>
@@ -235,7 +235,7 @@ html,body{background:#000!important;overflow:hidden;overscroll-behavior:none;hei
 function pblog(m){ try{ const l=JSON.parse(localStorage.getItem('pb_log')||'[]'); const d=new Date();
   l.push(d.toTimeString().slice(0,8)+' '+m); while(l.length>60) l.shift(); localStorage.setItem('pb_log',JSON.stringify(l)); }catch(_){} }
 addEventListener('error', e => pblog('FEHLER '+e.message));
-(()=>{ const n=performance.getEntriesByType('navigation')[0]; pblog('--- Seite geöffnet ('+(n?n.type:'?')+') v22 '+innerWidth+'x'+innerHeight+' screen '+screen.width+'x'+screen.height+(matchMedia('(display-mode: standalone)').matches?' standalone':'')+(navigator.standalone?' App':' Safari')); })();
+(()=>{ const n=performance.getEntriesByType('navigation')[0]; pblog('--- Seite geöffnet ('+(n?n.type:'?')+') v23 '+innerWidth+'x'+innerHeight+' screen '+screen.width+'x'+screen.height+(matchMedia('(display-mode: standalone)').matches?' standalone':'')+(navigator.standalone?' App':' Safari')); })();
 /* ================= Zurück-Wischgeste von Safari abfangen =================
    Ein Wischen vom linken Rand (z. B. am Steuerkreuz) würde sonst die Seite verlassen. */
 try{ history.replaceState({pb:0},''); history.pushState({pb:1},''); }catch(_){}
@@ -514,23 +514,19 @@ async function libAll(){
 const LR_SYS = {dmg:'Nintendo_-_Game_Boy', gbc:'Nintendo_-_Game_Boy_Color', gba:'Nintendo_-_Game_Boy_Advance'};
 function netCoverUrls(i){
   const base = i.name.replace(/\.(gba|gbc|gb|zip)$/i,'').replace(/[&*\/:`<>?\\|"]/g,'_');
-  const enc = encodeURIComponent(base)+'.png', sys = LR_SYS[i.kind];
-  return [`https://thumbnails.libretro.com/${sys.replace(/_/g,' ')}/Named_Boxarts/${enc}`,
-          `https://raw.githubusercontent.com/libretro-thumbnails/${sys}/master/Named_Boxarts/${enc}`];
+  const noRev = base.replace(/\s*\(Rev [^)]*\)/g,'');
+  const sys = LR_SYS[i.kind], out=[];
+  for(const kind of ['Named_Boxarts','Named_Titles'])
+    for(const n of [...new Set([base, noRev])])
+      out.push(`https://raw.githubusercontent.com/libretro-thumbnails/${sys}/master/${kind}/${encodeURIComponent(n)}.png`,
+               `https://thumbnails.libretro.com/${encodeURIComponent(sys.replace(/_/g,' '))}/${kind}/${encodeURIComponent(n)}.png`);
+  return out;
 }
-async function fetchNetCover(i){
-  if(!S.netcovers) return null;
-  const miss = await get('nocover:'+i.name).catch(()=>null);
-  if(miss && Date.now()-miss < 7*864e5) return null;           // fehlende Cover nur 1x pro Woche erneut suchen
-  for(const u of netCoverUrls(i)){
-    try{ const r = await fetch(u); if(!r.ok) continue;
-      const bl = await r.blob(); if(!bl.type.startsWith('image')) continue;
-      const url = await new Promise(res=>{ const fr=new FileReader(); fr.onload=()=>res(fr.result); fr.readAsDataURL(bl); });
-      await put('netcover:'+i.name, url); return url;
-    }catch(_){}
-  }
-  await put('nocover:'+i.name, Date.now()); return null;
-}
+// Bild direkt laden (ohne fetch -> keine CORS-Sperre); probiert die Adressen der Reihe nach
+window.pbCoverErr = img => { const l = JSON.parse(img.dataset.try||'[]'); const n = l.shift();
+  if(n){ img.dataset.try = JSON.stringify(l); img.src = n; } else { img.remove(); } };
+window.pbCoverOk = img => { const box = !/Named_Titles/.test(img.src); img.parentNode.classList.toggle('box', box);
+  put('netcoverurl:'+img.dataset.n, img.src).catch(()=>{}); };
 async function libRender(){
   const list = document.getElementById('libList');
   let items = await libAll();
@@ -541,16 +537,16 @@ async function libRender(){
   items.sort(sorters[libF.s]);
   if(!items.length){ list.innerHTML = `<div class="libEmpty">${q||libF.f!=='all' ? 'Nichts gefunden.' : 'Noch keine Spiele.<br>Lade ein Spiel über MENÜ → 📂 ROM laden oder 🌐 Link –<br>es landet automatisch hier.'}</div>`; return; }
   const covers = {};
-  const need = [];
   await Promise.all(items.map(async i=>{
-    const nc = S.netcovers ? await get('netcover:'+i.name).catch(()=>null) : null;
-    covers[i.name] = nc || await get('cover:'+i.name).catch(()=>null);
-    if(nc) covers[i.name+'#box']=1; else if(S.netcovers) need.push(i);
+    covers[i.name] = await get('cover:'+i.name).catch(()=>null);
+    covers[i.name+'#net'] = S.netcovers ? await get('netcoverurl:'+i.name).catch(()=>null) : null;
   }));
-  if(need.length) Promise.all(need.map(fetchNetCover)).then(r=>{ if(r.some(Boolean)) libRender(); });
   const esc = t => t.replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   const card = i => `<div class="libItem" data-n="${esc(i.name)}">
-      <div class="cart ${i.kind}"><div class="label${covers[i.name+'#box']?' box':''}">${covers[i.name]?`<img src="${covers[i.name]}" alt="">`:''}<span>${esc(i.title)}</span></div>
+      <div class="cart ${i.kind}"><div class="label${covers[i.name+'#net'] && !/Named_Titles/.test(covers[i.name+'#net'])?' box':''}">${covers[i.name]?`<img src="${covers[i.name]}" alt="">`:''}${
+        S.netcovers ? (()=>{ const l = covers[i.name+'#net'] ? [covers[i.name+'#net'], ...netCoverUrls(i)] : netCoverUrls(i);
+          return `<img class="net" data-n="${esc(i.name)}" data-try='${esc(JSON.stringify(l.slice(1))).replace(/'/g,'&#39;')}' src="${esc(l[0])}" onload="pbCoverOk(this)" onerror="pbCoverErr(this)" alt="">`; })() : ''
+      }<span>${esc(i.title)}</span></div>
       <div class="badge">${i.kind==='gba'?'ADVANCE':i.kind==='gbc'?'COLOR':'GAME BOY'}</div></div>
       <div class="t">${esc(i.title)}</div><div class="m">${i.plays||1}× gespielt · ${Math.max(1,Math.round(i.size/1024))>1023?(i.size/1048576).toFixed(1)+' MB':Math.round(i.size/1024)+' KB'}</div>
       <button class="del" aria-label="Löschen">✕</button></div>`;
@@ -582,6 +578,11 @@ document.getElementById('libEdit').onclick = e=>{ const l=document.getElementByI
 async function grabCover(){
   if(!started || !rom || rom.name==='PocketBoy-Demo.gb') return;
   try{
+    // 1. Versuch: Screenshot-Funktion des Emulators (liefert ein PNG)
+    try{ const E = ejs(); let d = E.gameManager.screenshot && E.gameManager.screenshot(); if(d && d.then) d = await d;
+      if(d && d.length > 200){ const url = await new Promise(r=>{ const f=new FileReader(); f.onload=()=>r(f.result); f.readAsDataURL(new Blob([d],{type:'image/png'})); });
+        await put('cover:'+rom.name, url); pblog('Cover (Screenshot) gespeichert'); return; } }catch(e){ pblog('Screenshot-API: '+e.message); }
+    // 2. Versuch: Grafikfläche abgreifen
     const c = document.getElementById('emu').contentDocument.querySelector('canvas'); if(!c) return;
     const ar = cur==='gba' ? 1.5 : 160/144, W = 240, H = Math.round(W/ar);
     const o = document.createElement('canvas'); o.width=W; o.height=H;
@@ -590,7 +591,7 @@ async function grabCover(){
     let w=sw, h=sh; if(ca>ar) w=sh*ar; else h=sw/ar;
     g.drawImage(c,(sw-w)/2,(sh-h)/2,w,h,0,0,W,H);
     const px = g.getImageData(W/2-20,H/2-20,40,40).data; let sum=0; for(let i=0;i<px.length;i+=4) sum+=px[i]+px[i+1]+px[i+2];
-    if(sum < 40*40*30) return;                                // schwarzes Bild nicht übernehmen
+    if(sum < 40*40*30){ pblog('Cover: Bild leer'); return; }                                // schwarzes Bild nicht übernehmen
     await put('cover:'+rom.name, o.toDataURL('image/jpeg',0.8)); pblog('Cover gespeichert');
   }catch(e){ pblog('Cover-Fehler '+e.message); }
 }

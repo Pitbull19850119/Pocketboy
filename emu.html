@@ -34,8 +34,9 @@ async function unzipFirst(buf){
   }
   return null;
 }
-function romKind(buf){
+function romKind(buf,name){
   const u=new Uint8Array(buf);
+  if(/\.gbc$/i.test(name||'') && !(u.length>0xB2 && u[0xB2]===0x96 && u[3]===0xEA)) return 'gbc';  // .gbc-Endung zählt als Color
   if(u.length>0xB2 && u[0xB2]===0x96 && u[3]===0xEA) return 'gba';      // GBA-Header: feste Kennung + Sprungbefehl
   if(u.length>0x143 && (u[0x143]&0x80)) return 'gbc';                     // Color-Flag im GB-Header
   return 'dmg';
@@ -45,7 +46,7 @@ function romKind(buf){
   let buf = await P.__rom.file.arrayBuffer(), name = P.__rom.name;
   const u0 = new Uint8Array(buf,0,2);
   if(u0[0]===0x50 && u0[1]===0x4B){ const z = await unzipFirst(buf); if(z){ buf=z.buf; name=z.name.split('/').pop(); } }
-  const kind = romKind(buf);
+  const kind = romKind(buf,name);
   name = name.replace(/\.(zip|gb|gbc|gba)$/i,'') + (kind==='gba'?'.gba':kind==='gbc'?'.gbc':'.gb');
   const file = new File([buf], name);
   P.postMessage({ t:'kind', kind }, '*');

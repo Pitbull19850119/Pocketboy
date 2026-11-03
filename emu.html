@@ -12,19 +12,53 @@ canvas{image-rendering:pixelated;image-rendering:crisp-edges}
 </style></head>
 <body><div id="game"></div>
 <script>
+async function unzipFirst(buf){
+  const v=new DataView(buf); let o=0;
+  while(o+30<buf.byteLength && v.getUint32(o,true)===0x04034b50){
+    const flag=v.getUint16(o+6,true), method=v.getUint16(o+8,true);
+    let csize=v.getUint32(o+18,true); const nl=v.getUint16(o+26,true), el=v.getUint16(o+28,true);
+    const name=new TextDecoder().decode(new Uint8Array(buf,o+30,nl)), start=o+30+nl+el;
+    if(flag&8){ // Grösse steht erst im Zentralverzeichnis
+      const u8=new Uint8Array(buf); for(let i=buf.byteLength-22;i>=0;i--) if(v.getUint32(i,true)===0x06054b50){
+        let c=v.getUint32(i+16,true); while(v.getUint32(c,true)===0x02014b50){ const n2=v.getUint16(c+28,true);
+          const nm=new TextDecoder().decode(u8.subarray(c+46,c+46+n2));
+          if(nm===name){ csize=v.getUint32(c+20,true); break; } c+=46+n2+v.getUint16(c+30,true)+v.getUint16(c+32,true);} break; }
+    }
+    if(/\.(gba|gbc|gb)$/i.test(name)){
+      const data=new Uint8Array(buf,start,csize);
+      if(method===0) return {name,buf:data.slice().buffer};
+      const ds=new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+      return {name,buf:await new Response(ds).arrayBuffer()};
+    }
+    o=start+csize;
+  }
+  return null;
+}
+function romKind(buf){
+  const u=new Uint8Array(buf);
+  if(u.length>0xB2 && u[0xB2]===0x96 && u[3]===0xEA) return 'gba';      // GBA-Header: feste Kennung + Sprungbefehl
+  if(u.length>0x143 && (u[0x143]&0x80)) return 'gbc';                     // Color-Flag im GB-Header
+  return 'dmg';
+}
 (async () => {
   const P = parent;
-  const buf = await P.__rom.file.arrayBuffer();
-  const file = new File([buf], P.__rom.name);           // im iframe neu erzeugen
+  let buf = await P.__rom.file.arrayBuffer(), name = P.__rom.name;
+  const u0 = new Uint8Array(buf,0,2);
+  if(u0[0]===0x50 && u0[1]===0x4B){ const z = await unzipFirst(buf); if(z){ buf=z.buf; name=z.name.split('/').pop(); } }
+  const kind = romKind(buf);
+  name = name.replace(/\.(zip|gb|gbc|gba)$/i,'') + (kind==='gba'?'.gba':kind==='gbc'?'.gbc':'.gb');
+  const file = new File([buf], name);
+  P.postMessage({ t:'kind', kind }, '*');
   window.EJS_player = '#game';
-  const ext = P.__rom.name.toLowerCase().split('.').pop();
-  window.EJS_core = P.__rom.core || (ext==='gba' ? 'mgba' : 'gambatte');  // gambatte (.gb/.gbc) oder mgba (.gba)
+  window.EJS_core = kind==='gba' ? 'mgba' : 'gambatte';   // Kern immer aus dem Dateiinhalt
   window.EJS_gameUrl = file;
-  window.EJS_gameName = P.__rom.name.replace(/\.[^.]+$/, '');
+  window.EJS_gameName = name.replace(/\.[^.]+$/, '');
   window.EJS_pathtodata = 'https://cdn.emulatorjs.org/stable/data/';
   window.EJS_startOnLoaded = true;
   window.EJS_backgroundColor = '#000';
-  window.EJS_defaultOptions = P.__rom.coreOpts || {};
+  window.EJS_defaultOptions = kind==='gba' ? {'mgba_skip_bios':'ON','mgba_interframe_blending':'mix'}
+    : Object.assign({'gambatte_gb_colorization':'internal','gambatte_gb_internal_palette':'GB - DMG','gambatte_mix_frames':'mix'},
+        (P.__rom.coreOpts && !P.__rom.coreOpts.mgba_skip_bios) ? P.__rom.coreOpts : {});
   window.EJS_onGameStart = () => P.postMessage({ t: 'started' }, '*');
   const s = document.createElement('script');
   s.src = window.EJS_pathtodata + 'loader.js';

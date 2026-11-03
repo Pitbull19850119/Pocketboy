@@ -149,7 +149,7 @@ html,body{margin:0;height:100%;overflow:hidden;background:#111;touch-action:none
 </div></div>
 
 <div id="help"><div class="sheet">
-  <h2>So funktioniert PocketBoy <span style="font-size:11px;color:#777">v3</span></h2>
+  <h2>So funktioniert PocketBoy <span style="font-size:11px;color:#777">v4</span></h2>
   <h4>Spiel starten</h4>
   <ul><li><b>MENÜ → 🎮 Demo</b> startet ein kleines eingebautes Testspiel: Ball mit dem Steuerkreuz bewegen, <b>A</b> tauscht die Farben.</li>
   <li><b>MENÜ → 📂 ROM laden</b> öffnet die Dateien-App. Erlaubt sind <b>.gb</b>, <b>.gbc</b>, <b>.gba</b> (auch als .zip).</li>
@@ -446,6 +446,7 @@ async function loadRom(f){
   document.getElementById('scr').insertBefore(fr, document.querySelector('#scr .grid'));
 }
 addEventListener('message', async e => {
+  if(e.data && e.data.t==='kind' && rom && rom.kind!==e.data.kind){ rom.kind=e.data.kind; S.model='auto'; build(); }
   if(e.data && e.data.t==='started'){
     started = true; setLed(true); document.getElementById('idle').style.display='none';
     if(S.sound) bootSound();

@@ -200,7 +200,7 @@ html,body{background:#000!important;overflow:hidden;overscroll-behavior:none;hei
   <div id="libList"></div>
 </div>
 <div id="help"><div class="sheet">
-  <h2>So funktioniert PocketBoy <span style="font-size:11px;color:#777">v24</span></h2>
+  <h2>So funktioniert PocketBoy <span style="font-size:11px;color:#777">v25</span></h2>
   <h4>Spiel starten</h4>
   <ul><li><b>MENÜ → 🎮 Demo</b> startet ein kleines eingebautes Testspiel: Ball mit dem Steuerkreuz bewegen, <b>A</b> tauscht die Farben.</li>
   <li><b>MENÜ → 📚 Bibliothek</b> zeigt alle Spiele, die du schon geladen hast, sortiert nach Konsole. Mit Suche, Filter und Sortierung. Cover werden aus der öffentlichen libretro-Cover-Datenbank geladen, wenn der Dateiname dem üblichen Schema entspricht (z. B. „Super Mario Land (World).gb“). Sonst wird nach ein paar Sekunden Spielzeit ein Bild aus dem Spiel zum Cover. Abschaltbar unter MENÜ → Cover aus Internet. „Bearbeiten“ zum Löschen.</li>
@@ -237,7 +237,7 @@ html,body{background:#000!important;overflow:hidden;overscroll-behavior:none;hei
 function pblog(m){ try{ const l=JSON.parse(localStorage.getItem('pb_log')||'[]'); const d=new Date();
   l.push(d.toTimeString().slice(0,8)+' '+m); while(l.length>60) l.shift(); localStorage.setItem('pb_log',JSON.stringify(l)); }catch(_){} }
 addEventListener('error', e => pblog('FEHLER '+e.message));
-(()=>{ const n=performance.getEntriesByType('navigation')[0]; pblog('--- Seite geöffnet ('+(n?n.type:'?')+') v24 '+innerWidth+'x'+innerHeight+' screen '+screen.width+'x'+screen.height+(matchMedia('(display-mode: standalone)').matches?' standalone':'')+(navigator.standalone?' App':' Safari')); })();
+(()=>{ const n=performance.getEntriesByType('navigation')[0]; pblog('--- Seite geöffnet ('+(n?n.type:'?')+') v25 '+innerWidth+'x'+innerHeight+' screen '+screen.width+'x'+screen.height+(matchMedia('(display-mode: standalone)').matches?' standalone':'')+(navigator.standalone?' App':' Safari')); })();
 /* ================= Zurück-Wischgeste von Safari abfangen =================
    Ein Wischen vom linken Rand (z. B. am Steuerkreuz) würde sonst die Seite verlassen. */
 try{ history.replaceState({pb:0},''); history.pushState({pb:1},''); }catch(_){}
@@ -525,9 +525,9 @@ function netCoverUrls(i){
   return out;
 }
 // Bild direkt laden (ohne fetch -> keine CORS-Sperre); probiert die Adressen der Reihe nach
-window.pbCoverErr = img => { const l = JSON.parse(img.dataset.try||'[]'); const n = l.shift();
+window.pbCoverErr = img => { if(!img.isConnected) return; const l = JSON.parse(img.dataset.try||'[]'); const n = l.shift();
   if(n){ img.dataset.try = JSON.stringify(l); img.src = n; } else { img.remove(); } };
-window.pbCoverOk = img => { const box = !/Named_Titles/.test(img.src); img.parentNode.classList.toggle('box', box);
+window.pbCoverOk = img => { if(!img.parentNode || !img.isConnected) return; const box = !/Named_Titles/.test(img.src); img.parentNode.classList.toggle('box', box);
   put('netcoverurl:'+img.dataset.n, img.src).catch(()=>{}); };
 async function libRender(){
   const list = document.getElementById('libList');
@@ -566,7 +566,7 @@ document.getElementById('libList').addEventListener('click', async e=>{
   if(document.getElementById('lib').classList.contains('edit')) return;
   const buf = await get('rom:'+n); if(!buf) return toast('Datei fehlt');
   document.getElementById('lib').classList.remove('open');
-  loadRom(new File([buf], n));
+  loadRom(new File([buf], n), false, true);
 });
 document.getElementById('libSearch').addEventListener('input', e=>{ libF.q=e.target.value; libRender(); });
 document.getElementById('libChips').addEventListener('click', e=>{ const b=e.target.closest('button'); if(!b) return;
@@ -654,7 +654,10 @@ function romKind(buf,name){
   if(u.length>0x143 && (u[0x143]&0x80)) return 'gbc';                     // Color-Flag im GB-Header
   return 'dmg';
 }
-async function loadRom(f, resume){
+let loadingRom = 0;
+async function loadRom(f, resume, fromLib){
+  if(Date.now() - loadingRom < 4000) return;              // Mehrfach-Tippen ignorieren
+  loadingRom = Date.now();
   if(!resume) await autoSave();
   let buf = await f.arrayBuffer(), name = f.name;
   if(new Uint8Array(buf,0,2)[0]===0x50 && new Uint8Array(buf,0,2)[1]===0x4B){
@@ -667,7 +670,10 @@ async function loadRom(f, resume){
   f = new File([buf], name);
   S.model = 'auto'; saveSet();
   try{ await put('lastrom', {name, buf}); }catch(_){}
-  if(name!=='PocketBoy-Demo.gb') libAdd(name, kind, buf).catch(()=>{});
+  if(name!=='PocketBoy-Demo.gb'){
+    if(fromLib) get('meta:'+name).then(m=>{ if(m){ m.played=Date.now(); m.plays=(m.plays||0)+1; put('meta:'+name,m); } }).catch(()=>{});
+    else libAdd(name, kind, buf).catch(()=>{});
+  }
   rom = { file:f, name:f.name, kind };
   const ext = f.name.toLowerCase().split('.').pop();
   const isGBA = kind==='gba';
@@ -686,13 +692,14 @@ async function loadRom(f, resume){
   const fr = document.createElement('iframe'); fr.id='emu'; fr.src='emu.html?'+Date.now();
   fr.setAttribute('allow','autoplay; gamepad');
   document.getElementById('scr').insertBefore(fr, document.querySelector('#scr .shade'));
-  document.getElementById('idle').style.display='none';
+  const idl=document.getElementById('idle'); idl.style.display=''; idl.innerHTML='Lädt …<br><span style="font-weight:400;font-size:11px">'+cleanTitle(name)+'</span>'; idl.style.zIndex=4;
 }
 addEventListener('message', async e => {
   if(e.data && e.data.t==='kind' && rom && rom.kind!==e.data.kind){ rom.kind=e.data.kind; S.model='auto'; build(); }
   if(e.data && e.data.t==='started'){
+    loadingRom = 0;
     setTimeout(()=>{ try{localStorage.removeItem('pb_boot')}catch(_){} }, 20000);  // 20 s stabil = kein Absturz
-    started = true; setLed(true); document.getElementById('idle').style.display='none';
+    started = true; setLed(true); document.getElementById('idle').style.display='none'; document.getElementById('idle').style.zIndex='';
     if(S.sound) bootSound();
     const st = window.__skipState ? null : await get('auto2:'+rom.core+':'+rom.name);
     window.__skipState = false;

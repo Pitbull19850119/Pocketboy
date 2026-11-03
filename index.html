@@ -200,7 +200,7 @@ html,body{background:#000!important;overflow:hidden;overscroll-behavior:none;hei
   <div id="libList"></div>
 </div>
 <div id="help"><div class="sheet">
-  <h2>So funktioniert PocketBoy <span style="font-size:11px;color:#777">v25</span></h2>
+  <h2>So funktioniert PocketBoy <span style="font-size:11px;color:#777">v26</span></h2>
   <h4>Spiel starten</h4>
   <ul><li><b>MENÜ → 🎮 Demo</b> startet ein kleines eingebautes Testspiel: Ball mit dem Steuerkreuz bewegen, <b>A</b> tauscht die Farben.</li>
   <li><b>MENÜ → 📚 Bibliothek</b> zeigt alle Spiele, die du schon geladen hast, sortiert nach Konsole. Mit Suche, Filter und Sortierung. Cover werden aus der öffentlichen libretro-Cover-Datenbank geladen, wenn der Dateiname dem üblichen Schema entspricht (z. B. „Super Mario Land (World).gb“). Sonst wird nach ein paar Sekunden Spielzeit ein Bild aus dem Spiel zum Cover. Abschaltbar unter MENÜ → Cover aus Internet. „Bearbeiten“ zum Löschen.</li>
@@ -237,7 +237,7 @@ html,body{background:#000!important;overflow:hidden;overscroll-behavior:none;hei
 function pblog(m){ try{ const l=JSON.parse(localStorage.getItem('pb_log')||'[]'); const d=new Date();
   l.push(d.toTimeString().slice(0,8)+' '+m); while(l.length>60) l.shift(); localStorage.setItem('pb_log',JSON.stringify(l)); }catch(_){} }
 addEventListener('error', e => pblog('FEHLER '+e.message));
-(()=>{ const n=performance.getEntriesByType('navigation')[0]; pblog('--- Seite geöffnet ('+(n?n.type:'?')+') v25 '+innerWidth+'x'+innerHeight+' screen '+screen.width+'x'+screen.height+(matchMedia('(display-mode: standalone)').matches?' standalone':'')+(navigator.standalone?' App':' Safari')); })();
+(()=>{ const n=performance.getEntriesByType('navigation')[0]; pblog('--- Seite geöffnet ('+(n?n.type:'?')+') v26 '+innerWidth+'x'+innerHeight+' screen '+screen.width+'x'+screen.height+(matchMedia('(display-mode: standalone)').matches?' standalone':'')+(navigator.standalone?' App':' Safari')); })();
 /* ================= Zurück-Wischgeste von Safari abfangen =================
    Ein Wischen vom linken Rand (z. B. am Steuerkreuz) würde sonst die Seite verlassen. */
 try{ history.replaceState({pb:0},''); history.pushState({pb:1},''); }catch(_){}
@@ -502,15 +502,18 @@ document.getElementById('urlBtn').onclick = async ()=>{
 /* ================= Bibliothek ================= */
 const KN = {dmg:'Game Boy', gbc:'Game Boy Color', gba:'Game Boy Advance'};
 const cleanTitle = n => n.replace(/\.(gba|gbc|gb|zip)$/i,'').replace(/\s*[\(\[][^\)\]]*[\)\]]/g,'').replace(/_/g,' ').trim() || n;
-const libF = {f:'all', s:'recent', q:''};
+const libF = {f:'all', s:'recent', q:'', n:60};
+let libCache = null;
 async function libAdd(name, kind, buf, importOnly){
   const old = await get('meta:'+name).catch(()=>null);
   await put('rom:'+name, buf);
+  libCache = null;
   await put('meta:'+name, Object.assign(old||{added:Date.now(), plays:0}, {name, kind, title:cleanTitle(name), size:buf.byteLength, played: importOnly ? ((old&&old.played)||0) : Date.now(), plays:((old&&old.plays)||0)+(importOnly?0:1)}));
 }
 async function libAll(){
+  if(libCache) return libCache;
   const d = await db; return new Promise(res=>{ const out=[]; const t=d.transaction('s','readonly').objectStore('s').openCursor();
-    t.onsuccess=e=>{ const c=e.target.result; if(!c) return res(out); if(String(c.key).startsWith('meta:')) out.push(c.value); c.continue(); }; t.onerror=()=>res(out); });
+    t.onsuccess=e=>{ const c=e.target.result; if(!c){ libCache=out; return res(out); } if(String(c.key).startsWith('meta:')) out.push(c.value); c.continue(); }; t.onerror=()=>res(out); });
 }
 /* Cover aus der öffentlichen libretro-thumbnails-Datenbank (Name muss dem No-Intro-Schema entsprechen) */
 const LR_SYS = {dmg:'Nintendo_-_Game_Boy', gbc:'Nintendo_-_Game_Boy_Color', gba:'Nintendo_-_Game_Boy_Advance'};
@@ -537,6 +540,9 @@ async function libRender(){
   if(libF.f!=='all') items = items.filter(i=>i.kind===libF.f);
   const sorters = {recent:(a,b)=>(b.played||0)-(a.played||0), az:(a,b)=>a.title.localeCompare(b.title,'de'), added:(a,b)=>(b.added||0)-(a.added||0)};
   items.sort(sorters[libF.s]);
+  const total = items.length;
+  document.querySelector('#lib h2').textContent = 'Bibliothek' + (total ? ' · '+total : '');
+  items = items.slice(0, libF.n);
   if(!items.length){ list.innerHTML = `<div class="libEmpty">${q||libF.f!=='all' ? 'Nichts gefunden.' : 'Noch keine Spiele.<br>Lade ein Spiel über MENÜ → 📂 ROM laden oder 🌐 Link –<br>es landet automatisch hier.'}</div>`; return; }
   const covers = {};
   await Promise.all(items.map(async i=>{
@@ -545,22 +551,25 @@ async function libRender(){
   }));
   const esc = t => t.replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   const card = i => `<div class="libItem" data-n="${esc(i.name)}">
-      <div class="cart ${i.kind}"><div class="label${covers[i.name+'#net'] && !/Named_Titles/.test(covers[i.name+'#net'])?' box':''}">${covers[i.name]?`<img src="${covers[i.name]}" alt="">`:''}${
+      <div class="cart ${i.kind}"><div class="label${covers[i.name+'#net'] && !/Named_Titles/.test(covers[i.name+'#net'])?' box':''}">${covers[i.name]?`<img src="${covers[i.name]}" loading="lazy" decoding="async" alt="">`:''}${
         S.netcovers ? (()=>{ const l = covers[i.name+'#net'] ? [covers[i.name+'#net'], ...netCoverUrls(i)] : netCoverUrls(i);
-          return `<img class="net" data-n="${esc(i.name)}" data-try='${esc(JSON.stringify(l.slice(1))).replace(/'/g,'&#39;')}' src="${esc(l[0])}" onload="pbCoverOk(this)" onerror="pbCoverErr(this)" alt="">`; })() : ''
+          return `<img class="net" data-n="${esc(i.name)}" data-try='${esc(JSON.stringify(l.slice(1))).replace(/'/g,'&#39;')}' src="${esc(l[0])}" loading="lazy" decoding="async" onload="pbCoverOk(this)" onerror="pbCoverErr(this)" alt="">`; })() : ''
       }<span>${esc(i.title)}</span></div>
       <div class="badge">${i.kind==='gba'?'ADVANCE':i.kind==='gbc'?'COLOR':'GAME BOY'}</div></div>
       <div class="t">${esc(i.title)}</div><div class="m">${i.plays||1}× gespielt · ${Math.max(1,Math.round(i.size/1024))>1023?(i.size/1048576).toFixed(1)+' MB':Math.round(i.size/1024)+' KB'}</div>
       <button class="del" aria-label="Löschen">✕</button></div>`;
   const groups = libF.f==='all' ? ['gba','gbc','dmg'] : [libF.f];
-  list.innerHTML = groups.map(k=>{ const g=items.filter(i=>i.kind===k); return g.length ? `<div class="libSec">${KN[k]} · ${g.length}</div><div class="libGrid">${g.map(card).join('')}</div>` : ''; }).join('');
+  const html = groups.map(k=>{ const g=items.filter(i=>i.kind===k); return g.length ? `<div class="libSec">${KN[k]}</div><div class="libGrid">${g.map(card).join('')}</div>` : ''; }).join('');
+  list.innerHTML = html + (total > items.length ? `<div id="libMore" style="text-align:center;color:#777;padding:18px;font-size:13px">${items.length} von ${total} – weiter scrollen …</div>` : '');
+  const more = document.getElementById('libMore');
+  if(more) new IntersectionObserver((en,ob)=>{ if(en[0].isIntersecting){ ob.disconnect(); libF.n += 60; libRender(); } }, {root:list, rootMargin:'400px'}).observe(more);
 }
 document.getElementById('libList').addEventListener('click', async e=>{
   const it = e.target.closest('.libItem'); if(!it) return;
   const n = it.dataset.n;
   if(e.target.classList.contains('del')){
     if(!confirm('„'+cleanTitle(n)+'“ aus der Bibliothek löschen?')) return;
-    await idb('readwrite',st=>{ ['rom:','meta:','cover:'].forEach(p=>st.delete(p+n)); });
+    await idb('readwrite',st=>{ ['rom:','meta:','cover:','netcoverurl:'].forEach(p=>st.delete(p+n)); }); libCache=null;
     return libRender();
   }
   if(document.getElementById('lib').classList.contains('edit')) return;
@@ -568,11 +577,11 @@ document.getElementById('libList').addEventListener('click', async e=>{
   document.getElementById('lib').classList.remove('open');
   loadRom(new File([buf], n), false, true);
 });
-document.getElementById('libSearch').addEventListener('input', e=>{ libF.q=e.target.value; libRender(); });
+let libQT; document.getElementById('libSearch').addEventListener('input', e=>{ clearTimeout(libQT); libQT=setTimeout(()=>{ libF.q=e.target.value; libF.n=60; document.getElementById('libList').scrollTop=0; libRender(); },220); });
 document.getElementById('libChips').addEventListener('click', e=>{ const b=e.target.closest('button'); if(!b) return;
   if(b.dataset.f){ libF.f=b.dataset.f; document.querySelectorAll('#libChips [data-f]').forEach(x=>x.classList.toggle('sel',x===b)); }
   if(b.dataset.s){ libF.s=b.dataset.s; document.querySelectorAll('#libChips [data-s]').forEach(x=>x.classList.toggle('sel',x===b)); }
-  libRender(); });
+  libF.n=60; document.getElementById('libList').scrollTop=0; libRender(); });
 document.getElementById('libBtn').onclick = ()=>{ closeMenu(); document.getElementById('lib').classList.add('open'); libRender(); };
 document.getElementById('libClose').onclick = ()=>document.getElementById('lib').classList.remove('open','edit');
 document.getElementById('libEdit').onclick = e=>{ const l=document.getElementById('lib'); l.classList.toggle('edit'); e.target.textContent = l.classList.contains('edit')?'Fertig':'Bearbeiten'; };

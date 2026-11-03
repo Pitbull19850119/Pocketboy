@@ -171,7 +171,8 @@ html,body{background:#000!important;overflow:hidden;overscroll-behavior:none;hei
 
 <div id="menu"><div class="sheet">
   <h3>Spiel</h3>
-  <div class="row"><button id="libBtn" style="flex-basis:100%">📚 Bibliothek</button></div>
+  <div class="row"><button id="libBtn">📚 Bibliothek</button><label class="filebtn">📁 Ordner importieren<input id="dirInput" type="file" multiple webkitdirectory style="display:none"></label></div>
+  <div class="row" style="margin-top:-6px"><label class="filebtn" style="background:#24242c;font-weight:500;font-size:12.5px">…oder mehrere Dateien auswählen<input id="multiInput" type="file" multiple accept=".gb,.gbc,.gba,.zip" style="display:none"></label></div>
   <div class="row"><button id="demoBtn">🎮 Demo</button><button id="urlBtn">🌐 Link</button><label class="filebtn">📂 ROM laden<input id="romInput" type="file" accept=".gb,.gbc,.gba,.zip"></label></div>
   <h3>Gerät</h3>
   <div class="row" id="models">
@@ -199,10 +200,11 @@ html,body{background:#000!important;overflow:hidden;overscroll-behavior:none;hei
   <div id="libList"></div>
 </div>
 <div id="help"><div class="sheet">
-  <h2>So funktioniert PocketBoy <span style="font-size:11px;color:#777">v23</span></h2>
+  <h2>So funktioniert PocketBoy <span style="font-size:11px;color:#777">v24</span></h2>
   <h4>Spiel starten</h4>
   <ul><li><b>MENÜ → 🎮 Demo</b> startet ein kleines eingebautes Testspiel: Ball mit dem Steuerkreuz bewegen, <b>A</b> tauscht die Farben.</li>
   <li><b>MENÜ → 📚 Bibliothek</b> zeigt alle Spiele, die du schon geladen hast, sortiert nach Konsole. Mit Suche, Filter und Sortierung. Cover werden aus der öffentlichen libretro-Cover-Datenbank geladen, wenn der Dateiname dem üblichen Schema entspricht (z. B. „Super Mario Land (World).gb“). Sonst wird nach ein paar Sekunden Spielzeit ein Bild aus dem Spiel zum Cover. Abschaltbar unter MENÜ → Cover aus Internet. „Bearbeiten“ zum Löschen.</li>
+  <li><b>MENÜ → 📁 Ordner importieren</b> liest alle Spiele aus einem Ordner inkl. Unterordnern ein (auch ZIPs) und legt sie in die Bibliothek, ohne sie zu starten. Bietet iOS nur die Dateiauswahl an: „…oder mehrere Dateien auswählen“ und oben rechts „Auswählen“ → alle markieren. Bereits vorhandene Spiele werden übersprungen.</li>
   <li><b>MENÜ → 🌐 Link</b> lädt ein Spiel direkt aus dem Internet. Nötig ist ein direkter Datei-Link (endet auf .gb/.gbc/.gba/.zip), und der Server muss den Zugriff erlauben. Sonst die Datei herunterladen und über ROM laden öffnen.</li>
   <li><b>MENÜ → 📂 ROM laden</b> öffnet die Dateien-App. Erlaubt sind <b>.gb</b>, <b>.gbc</b>, <b>.gba</b> (auch als .zip).</li>
   <li>Unter <b>Gerät → Automatisch</b> wird das Gehäuse passend zur Dateiendung gewählt. Du kannst es aber auch fix einstellen.</li></ul>
@@ -235,7 +237,7 @@ html,body{background:#000!important;overflow:hidden;overscroll-behavior:none;hei
 function pblog(m){ try{ const l=JSON.parse(localStorage.getItem('pb_log')||'[]'); const d=new Date();
   l.push(d.toTimeString().slice(0,8)+' '+m); while(l.length>60) l.shift(); localStorage.setItem('pb_log',JSON.stringify(l)); }catch(_){} }
 addEventListener('error', e => pblog('FEHLER '+e.message));
-(()=>{ const n=performance.getEntriesByType('navigation')[0]; pblog('--- Seite geöffnet ('+(n?n.type:'?')+') v23 '+innerWidth+'x'+innerHeight+' screen '+screen.width+'x'+screen.height+(matchMedia('(display-mode: standalone)').matches?' standalone':'')+(navigator.standalone?' App':' Safari')); })();
+(()=>{ const n=performance.getEntriesByType('navigation')[0]; pblog('--- Seite geöffnet ('+(n?n.type:'?')+') v24 '+innerWidth+'x'+innerHeight+' screen '+screen.width+'x'+screen.height+(matchMedia('(display-mode: standalone)').matches?' standalone':'')+(navigator.standalone?' App':' Safari')); })();
 /* ================= Zurück-Wischgeste von Safari abfangen =================
    Ein Wischen vom linken Rand (z. B. am Steuerkreuz) würde sonst die Seite verlassen. */
 try{ history.replaceState({pb:0},''); history.pushState({pb:1},''); }catch(_){}
@@ -501,10 +503,10 @@ document.getElementById('urlBtn').onclick = async ()=>{
 const KN = {dmg:'Game Boy', gbc:'Game Boy Color', gba:'Game Boy Advance'};
 const cleanTitle = n => n.replace(/\.(gba|gbc|gb|zip)$/i,'').replace(/\s*[\(\[][^\)\]]*[\)\]]/g,'').replace(/_/g,' ').trim() || n;
 const libF = {f:'all', s:'recent', q:''};
-async function libAdd(name, kind, buf){
+async function libAdd(name, kind, buf, importOnly){
   const old = await get('meta:'+name).catch(()=>null);
   await put('rom:'+name, buf);
-  await put('meta:'+name, Object.assign(old||{added:Date.now(), plays:0}, {name, kind, title:cleanTitle(name), size:buf.byteLength, played:Date.now(), plays:((old&&old.plays)||0)+1}));
+  await put('meta:'+name, Object.assign(old||{added:Date.now(), plays:0}, {name, kind, title:cleanTitle(name), size:buf.byteLength, played: importOnly ? ((old&&old.played)||0) : Date.now(), plays:((old&&old.plays)||0)+(importOnly?0:1)}));
 }
 async function libAll(){
   const d = await db; return new Promise(res=>{ const out=[]; const t=d.transaction('s','readonly').objectStore('s').openCursor();
@@ -595,6 +597,31 @@ async function grabCover(){
     await put('cover:'+rom.name, o.toDataURL('image/jpeg',0.8)); pblog('Cover gespeichert');
   }catch(e){ pblog('Cover-Fehler '+e.message); }
 }
+/* ================= Ordner / mehrere Dateien importieren ================= */
+async function importFiles(list){
+  const files = [...list].filter(f=>/\.(gb|gbc|gba|zip)$/i.test(f.name));
+  closeMenu();
+  if(!files.length) return toast('Keine Spiele gefunden (.gb .gbc .gba .zip)');
+  let ok=0, skip=0, bad=0;
+  for(let n=0; n<files.length; n++){
+    const f = files[n];
+    toast(`Importiere ${n+1} / ${files.length} …`);
+    try{
+      let buf = await f.arrayBuffer(), name = f.name;
+      const u = new Uint8Array(buf,0,2);
+      if(u[0]===0x50 && u[1]===0x4B){ const z = await unzipFirst(buf); if(!z){ bad++; continue; } buf=z.buf; name=z.name.split('/').pop(); }
+      const kind = romKind(buf, name);
+      name = name.replace(/\.(zip|gb|gbc|gba)$/i,'') + (kind==='gba'?'.gba':kind==='gbc'?'.gbc':'.gb');
+      const old = await get('meta:'+name).catch(()=>null);
+      if(old && old.size===buf.byteLength){ skip++; continue; }
+      await libAdd(name, kind, buf, true); ok++;
+    }catch(e){ bad++; pblog('Import-Fehler '+f.name+': '+e.message); }
+  }
+  pblog(`Import: ${ok} neu, ${skip} schon da, ${bad} Fehler`);
+  toast(`${ok} neu · ${skip} schon vorhanden${bad?' · '+bad+' Fehler':''}`);
+  document.getElementById('lib').classList.add('open'); libRender();
+}
+['dirInput','multiInput'].forEach(id=>document.getElementById(id).addEventListener('change', e=>{ const l=e.target.files; if(l&&l.length) importFiles(l); e.target.value=''; }));
 document.getElementById('closeHelp').onclick=()=>document.getElementById('help').classList.remove('open');
 document.getElementById('help').addEventListener('click',e=>{ if(e.target.id==='help') e.target.classList.remove('open'); });
 /* ROM-Typ am Inhalt erkennen (nicht an der Endung) */

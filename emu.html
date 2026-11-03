@@ -12,6 +12,12 @@ canvas{image-rendering:pixelated;image-rendering:crisp-edges}
 </style></head>
 <body><div id="game"></div>
 <script>
+function pblog(m){ try{ const l=JSON.parse(localStorage.getItem('pb_log')||'[]'); const d=new Date();
+  l.push(d.toTimeString().slice(0,8)+' '+m); while(l.length>60) l.shift(); localStorage.setItem('pb_log',JSON.stringify(l)); }catch(_){} }
+const pl = m => pblog('[emu] '+m);
+addEventListener('error', e => pl('FEHLER '+(e.message||e.type)+' '+(e.filename||'').split('/').pop()+':'+(e.lineno||'')), true);
+addEventListener('unhandledrejection', e => pl('PROMISE '+(e.reason&&(e.reason.message||e.reason))));
+const _ce = console.error; console.error = (...a) => { pl('console '+a.map(String).join(' ').slice(0,160)); _ce(...a); };
 async function unzipFirst(buf){
   const v=new DataView(buf); let o=0;
   while(o+30<buf.byteLength && v.getUint32(o,true)===0x04034b50){
@@ -47,6 +53,7 @@ function romKind(buf,name){
   const u0 = new Uint8Array(buf,0,2);
   if(u0[0]===0x50 && u0[1]===0x4B){ const z = await unzipFirst(buf); if(z){ buf=z.buf; name=z.name.split('/').pop(); } }
   const kind = romKind(buf,name);
+  pl('ROM '+name+' '+Math.round(buf.byteLength/1024)+'KB typ='+kind);
   name = name.replace(/\.(zip|gb|gbc|gba)$/i,'') + (kind==='gba'?'.gba':kind==='gbc'?'.gbc':'.gb');
   const file = new File([buf], name);
   P.postMessage({ t:'kind', kind }, '*');
@@ -60,10 +67,13 @@ function romKind(buf,name){
   window.EJS_defaultOptions = kind==='gba' ? {'mgba_skip_bios':'ON','mgba_interframe_blending':'mix'}
     : Object.assign({'gambatte_gb_colorization':'internal','gambatte_gb_internal_palette':'GB - DMG','gambatte_mix_frames':'mix'},
         (P.__rom.coreOpts && !P.__rom.coreOpts.mgba_skip_bios) ? P.__rom.coreOpts : {});
-  window.EJS_onGameStart = () => P.postMessage({ t: 'started' }, '*');
+  window.EJS_onGameStart = () => { pl('Spiel gestartet'); P.postMessage({ t: 'started' }, '*'); };
+  window.EJS_ready = () => pl('Kern bereit ('+window.EJS_core+')');
   const s = document.createElement('script');
   s.src = window.EJS_pathtodata + 'loader.js';
+  s.onerror = () => pl('loader.js nicht ladbar');
   document.body.appendChild(s);
+  pl('lade Kern '+window.EJS_core);
 })();
 </script>
 </body></html>

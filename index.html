@@ -150,7 +150,7 @@ html,body{background:#000!important}
 </div></div>
 
 <div id="help"><div class="sheet">
-  <h2>So funktioniert PocketBoy <span style="font-size:11px;color:#777">v9</span></h2>
+  <h2>So funktioniert PocketBoy <span style="font-size:11px;color:#777">v10</span></h2>
   <h4>Spiel starten</h4>
   <ul><li><b>MENÜ → 🎮 Demo</b> startet ein kleines eingebautes Testspiel: Ball mit dem Steuerkreuz bewegen, <b>A</b> tauscht die Farben.</li>
   <li><b>MENÜ → 📂 ROM laden</b> öffnet die Dateien-App. Erlaubt sind <b>.gb</b>, <b>.gbc</b>, <b>.gba</b> (auch als .zip).</li>
@@ -173,10 +173,18 @@ html,body{background:#000!important}
   <h4>Gut zu wissen</h4>
   <p>Der Emulator-Kern (mGBA) wird beim ersten Spielstart aus dem Netz geladen. Lade nur ROMs, die du rechtlich nutzen darfst, also Homebrew, Freeware oder eigene Sicherungen, wo das erlaubt ist.</p>
   <p style="color:#888;margin-top:10px">Diese Hilfe öffnest du über die kleine Schraube unten am Gehäuse. Das Menü erreichst du über MENÜ oben am Gerät.</p>
+  <h4>Diagnose</h4>
+  <p>Falls etwas abstürzt: hier das Protokoll kopieren und an Claude schicken.</p>
+  <pre id="logBox" style="font-size:10px;line-height:1.35;background:#111;color:#9f9;padding:8px;border-radius:8px;max-height:180px;overflow:auto;white-space:pre-wrap;-webkit-user-select:text;user-select:text"></pre>
+  <div class="row"><button id="copyLog">Protokoll kopieren</button><button id="clearLog">Leeren</button></div>
   <div class="row" style="margin-top:12px"><button id="closeHelp">Alles klar</button></div>
 </div></div>
 
 <script>
+function pblog(m){ try{ const l=JSON.parse(localStorage.getItem('pb_log')||'[]'); const d=new Date();
+  l.push(d.toTimeString().slice(0,8)+' '+m); while(l.length>60) l.shift(); localStorage.setItem('pb_log',JSON.stringify(l)); }catch(_){} }
+addEventListener('error', e => pblog('FEHLER '+e.message));
+(()=>{ const n=performance.getEntriesByType('navigation')[0]; pblog('--- Seite geöffnet ('+(n?n.type:'?')+') v10 '+innerWidth+'x'+innerHeight+(navigator.standalone?' App':' Safari')); })();
 /* ================= Einstellungen ================= */
 const S = Object.assign({model:'auto',grid:true,ghost:true,haptic:true,sound:true},
   JSON.parse(localStorage.getItem('pb_set')||'{}'));
@@ -395,6 +403,10 @@ document.getElementById('demoBtn').onclick = async ()=>{
   try{ const r=await fetch('demo.gb'); loadRom(new File([await r.blob()],'PocketBoy-Demo.gb')); }
   catch(_){ toast('Demo nicht gefunden'); }
 };
+function showLog(){ try{ document.getElementById('logBox').textContent = JSON.parse(localStorage.getItem('pb_log')||'[]').join('\n') + '\n' + navigator.userAgent; }catch(_){} }
+document.getElementById('copyLog').onclick = async ()=>{ showLog(); try{ await navigator.clipboard.writeText(document.getElementById('logBox').textContent); toast('Kopiert'); }catch(_){ toast('Text markieren und kopieren'); } };
+document.getElementById('clearLog').onclick = ()=>{ try{localStorage.removeItem('pb_log')}catch(_){} showLog(); };
+new MutationObserver(()=>{ if(document.getElementById('help').classList.contains('open')) showLog(); }).observe(document.getElementById('help'),{attributes:true});
 document.getElementById('closeHelp').onclick=()=>document.getElementById('help').classList.remove('open');
 document.getElementById('help').addEventListener('click',e=>{ if(e.target.id==='help') e.target.classList.remove('open'); });
 /* ROM-Typ am Inhalt erkennen (nicht an der Endung) */
@@ -451,6 +463,7 @@ async function loadRom(f, resume){
     'gambatte_gb_hwmode': currentModel()==='dmg' ? 'GB' : 'Auto'
   };
   window.__rom = rom; started = false;
+  pblog('lade '+name+' kern='+rom.core+(resume?' (fortsetzen)':''));
   try{ localStorage.setItem('pb_boot', String(Date.now())); }catch(_){}
   const old = document.getElementById('emu'); if(old) old.remove();
   closeMenu(); build();
@@ -467,16 +480,17 @@ addEventListener('message', async e => {
     if(S.sound) bootSound();
     const st = window.__skipState ? null : await get('auto2:'+rom.core+':'+rom.name);
     window.__skipState = false;
-    if(st){ setTimeout(()=>{ try{ ejs().gameManager.loadState(st); toast('Weitergespielt, wo du aufgehört hast'); }catch(_){} }, 600); }
+    pblog('läuft'+(st?', Spielstand '+Math.round(st.byteLength/1024)+'KB wird geladen':''));
+    if(st){ setTimeout(()=>{ try{ ejs().gameManager.loadState(st); pblog('Spielstand geladen'); toast('Weitergespielt, wo du aufgehört hast'); }catch(_){} }, 600); }
   }
 });
 
 /* ================= Speicherstände ================= */
 async function autoSave(){
   const e = ejs(); if(!started || !e || !rom) return;
-  try{ await put('auto2:'+rom.core+':'+rom.name, e.gameManager.getState()); }catch(_){}
+  try{ const st=e.gameManager.getState(); await put('auto2:'+rom.core+':'+rom.name, st); pblog('Autosave '+Math.round(st.byteLength/1024)+'KB'); }catch(err){ pblog('Autosave-Fehler '+err.message); }
 }
-document.addEventListener('visibilitychange', ()=>{ if(document.hidden) autoSave(); });
+document.addEventListener('visibilitychange', ()=>{ pblog(document.hidden?'App im Hintergrund':'App wieder vorne'); if(document.hidden) autoSave(); });
 addEventListener('pagehide', autoSave);
 setInterval(autoSave, 30000);
 document.getElementById('saveBtn').onclick = async ()=>{
@@ -537,7 +551,8 @@ build();
     // Letzter Start ist abgestürzt: nichts automatisch laden, Spielstand dieses Spiels verwerfen
     get('lastrom').then(r=>{ if(r){ ['gambatte','mgba'].forEach(c=>idb('readwrite',st=>st.delete('auto2:'+c+':'+r.name))); } });
     idb('readwrite',st=>st.delete('lastrom'));
-    setTimeout(()=>toast('Letzter Start ist abgestürzt – bitte Spiel neu laden'), 500);
+    pblog('!! vorheriger Start ist abgestürzt');
+    setTimeout(()=>toast('Letzter Start ist abgestürzt – Diagnose in der Hilfe'), 500);
     return;
   }
   get('lastrom').then(r=>{ if(r && r.buf && !rom){ loadRom(new File([r.buf], r.name), true); } }).catch(()=>{});
